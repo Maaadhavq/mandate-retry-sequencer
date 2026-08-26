@@ -56,7 +56,9 @@ def load_batch(path: Path | str = DEFAULT_BATCH_PATH) -> list[MandateRecord]:
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(
-            f"{path} is missing — generate the batch first (see CLAUDE.md)."
+            f"{path} is missing. Generate the batch first (see README.md): "
+            ".venv/Scripts/python -m backend.scripts.generate_data "
+            "--seed 42 --n 500 --name batch"
         )
     with path.open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))

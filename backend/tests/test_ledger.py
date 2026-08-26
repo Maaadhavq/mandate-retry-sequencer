@@ -273,7 +273,7 @@ def test_attempts_per_recovery_is_zero_when_nothing_recovered(tmp_path: Path) ->
 def executor() -> Executor:
     truth_path = Path(__file__).resolve().parents[2] / "data" / "batch_truth.json"
     if not truth_path.exists():
-        pytest.skip("generate the batch first (see CLAUDE.md)")
+        pytest.skip("generate the batch first (see README.md)")
     return Executor.load(truth_path, seed=42)
 
 

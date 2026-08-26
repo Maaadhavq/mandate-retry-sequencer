@@ -95,7 +95,9 @@ class SealedHoldout:
 def read_csv(path: Path) -> list[dict]:
     if not path.exists():
         raise FileNotFoundError(
-            f"{path} is missing. Generate it first — see the data commands in CLAUDE.md."
+            f"{path} is missing. Generate the corpus first (see README.md): "
+            ".venv/Scripts/python -m backend.scripts.generate_data "
+            "--seed 1042 --n 8000 --name corpus --split"
         )
     with path.open(newline="", encoding="utf-8") as fh:
         return list(csv.DictReader(fh))

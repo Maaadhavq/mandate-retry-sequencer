@@ -66,7 +66,9 @@ class Executor:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(
-                f"{path} is missing — generate the batch first (see CLAUDE.md)."
+                f"{path} is missing. Generate the batch first (see README.md): "
+                ".venv/Scripts/python -m backend.scripts.generate_data "
+                "--seed 42 --n 500 --name batch"
             )
         return cls(json.loads(path.read_text(encoding="utf-8")), seed=seed)
 

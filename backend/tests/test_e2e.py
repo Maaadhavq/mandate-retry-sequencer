@@ -27,7 +27,7 @@ DATA = REPO_ROOT / "data"
 needs_artifacts = pytest.mark.skipif(
     not (DATA / "batch.csv").exists()
     or not (REPO_ROOT / "models" / "scorer.txt").exists(),
-    reason="run the data and train commands in CLAUDE.md first",
+    reason="run the data commands in README.md first",
 )
 
 pytestmark = needs_artifacts

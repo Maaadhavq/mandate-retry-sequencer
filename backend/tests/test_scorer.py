@@ -41,7 +41,7 @@ MODELS = REPO_ROOT / "models"
 
 needs_artifacts = pytest.mark.skipif(
     not (MODELS / "metrics.json").exists() or not (DATA / "batch.csv").exists(),
-    reason="run the data and train commands in CLAUDE.md first",
+    reason="run the data commands in README.md first",
 )
 
 

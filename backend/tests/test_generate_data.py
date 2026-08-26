@@ -311,6 +311,27 @@ def test_holdout_split_is_written_at_generation_time(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------------------
 
 
+def test_edtech_cycle_defaults_per_dataset(tmp_path: Path) -> None:
+    """SPEC §2.2's drift must not depend on remembering a flag.
+
+    Regression: regenerating the batch without `--edtech-off-cycle` once fell back to the
+    module default, silently producing a different world and moving the headline figure by
+    roughly ₹21,000 with no error raised anywhere.
+    """
+    from backend.scripts.generate_data import EDTECH_OFF_CYCLE_BY_NAME
+
+    assert EDTECH_OFF_CYCLE_BY_NAME["batch"] > EDTECH_OFF_CYCLE_BY_NAME["corpus"], (
+        "the batch must be more off-cycle than the corpus or there is no drift"
+    )
+
+    for name in ("batch", "corpus"):
+        run_generator(tmp_path / name, seed=42, n=100, name=name, split=False)
+        truth = json.loads(
+            (tmp_path / name / f"{name}_truth.json").read_text(encoding="utf-8")
+        )
+        assert truth["edtech_off_cycle_base"] == EDTECH_OFF_CYCLE_BY_NAME[name]
+
+
 def test_batch_mode_writes_one_unsplit_file(tmp_path: Path) -> None:
     """The operational batch is never split: it is not fitted on, so it has no holdout."""
     run_generator(tmp_path, seed=42, n=500, name="batch", split=False)

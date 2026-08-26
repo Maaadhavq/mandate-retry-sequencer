@@ -8,8 +8,10 @@
 - ui: `cd frontend && npm run dev` (:5173)
 - test: `.venv/Scripts/python -m pytest` — run single tests while iterating, not the suite
 - data (both are needed; the batch is never fitted on — SPEC §2.1):
-  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 42 --n 500 --name batch --edtech-off-cycle 0.85`
-  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 1042 --n 8000 --name corpus --split --edtech-off-cycle 0.45`
+  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 42 --n 500 --name batch`
+  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 1042 --n 8000 --name corpus --split`
+  - the edtech drift rate defaults per `--name`; do not pass `--edtech-off-cycle` by hand
+- verify: `.venv/Scripts/python -m backend.scripts.verify_totals` after a `/batch/run`
 - train: `.venv/Scripts/python -m backend.scripts.train_scorer`
 
 Python is 3.12 in `.venv`, managed by `uv`. Never use the system 3.14 — LightGBM and SHAP wheels break.

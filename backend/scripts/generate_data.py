@@ -147,6 +147,14 @@ ATTEMPT_DECAY: Final[float] = 0.86
 #: during a between-terms month still fails, because the household is not paying school
 #: fees that month at all.
 EDTECH_OFF_CYCLE_BASE: Final[float] = 0.55
+
+#: Per-dataset defaults, so the drift in SPEC §2.2 cannot be lost by forgetting a flag.
+#: It was, once: regenerating the batch without --edtech-off-cycle silently produced a
+#: different world and moved the headline figure by ~Rs 21,000 with no error anywhere.
+EDTECH_OFF_CYCLE_BY_NAME: Final[dict[str, float]] = {
+    "batch": 0.85,    # operational: currently off-cycle
+    "corpus": 0.45,   # modelling: historical, mostly in-cycle
+}
 EDTECH_OFF_CYCLE_PAYDAY_LIFT: Final[float] = 0.40
 EDTECH_PAYDAY_REFERENCE_DAYS: Final[float] = 12.0
 EDTECH_OFF_CYCLE_MULT: Final[float] = 0.18
@@ -450,7 +458,7 @@ def main() -> None:
     parser.add_argument(
         "--edtech-off-cycle",
         type=float,
-        default=EDTECH_OFF_CYCLE_BASE,
+        default=None,
         help="base probability an edtech row is off-cycle. SPEC §2.2: the corpus is "
         "generated mostly in-cycle (0.45) and the batch mostly off-cycle (0.85), so the "
         "scorer meets a drifted distribution at run time.",
@@ -462,6 +470,9 @@ def main() -> None:
         "split, the operational batch is not — it is never fitted on.",
     )
     args = parser.parse_args()
+
+    if args.edtech_off_cycle is None:
+        args.edtech_off_cycle = EDTECH_OFF_CYCLE_BY_NAME.get(args.name, EDTECH_OFF_CYCLE_BASE)
 
     records, truth = generate(
         n=args.n, seed=args.seed, edtech_off_cycle_base=args.edtech_off_cycle

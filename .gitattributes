@@ -1,0 +1,26 @@
+# Line-ending policy.
+#
+# This exists because of a real failure, not as boilerplate. `models/scorer.txt` is a
+# LightGBM model dump: text to git, but a strict format to LightGBM. With git's default
+# autocrlf on Windows it was checked out with CRLF endings, and a fresh clone died with
+#
+#     [LightGBM] [Fatal] Model format error, expect a tree here.
+#
+# on every prediction. The repo worked perfectly for the author and was broken for
+# everyone who cloned it. Caught by SPEC 8.4's clone test; it would otherwise have been
+# found by a judge.
+
+# Source and docs: LF in the repo, normalised on commit.
+* text=auto eol=lf
+
+# Artefacts that must survive byte-for-byte. `binary` implies -text -diff.
+models/scorer.txt binary
+models/metrics.json -text
+
+# Committed agent decisions. The reproducibility claim in SPEC 4.3 is byte-for-byte
+# replay, so these must not be rewritten on checkout either.
+cache/llm/*.json -text
+
+# Generated data is gitignored, but pin it in case that ever changes.
+data/*.csv -text
+data/*.jsonl -text

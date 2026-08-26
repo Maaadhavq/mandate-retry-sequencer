@@ -83,3 +83,82 @@ h1 { margin: .3rem 0 .4rem; font-size: 1.9rem; letter-spacing: -.02em; }
   background: var(--surface); border: 1px solid var(--line);
   border-radius: 99px; padding: .18rem .7rem; font-size: .78rem;
 }
+
+/* ---- controls ---- */
+.controls { display: flex; align-items: center; gap: 1rem; }
+.toggle {
+  display: flex; align-items: center; gap: .5rem;
+  color: var(--muted); font-size: .85rem; cursor: pointer; white-space: nowrap;
+}
+.toggle input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+/* ---- veto: the demo's centrepiece ---- */
+.veto {
+  margin-top: 1.8rem; padding: 1.1rem 1.3rem;
+  background: #24160f; border: 1px solid #5c3527;
+  border-left: 3px solid var(--crit); border-radius: 0 9px 9px 0;
+}
+.veto-lead { margin: .45rem 0 .9rem; color: var(--ink); font-size: .92rem; }
+.veto-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.veto-amount { font-size: 1.35rem; font-weight: 700; color: var(--crit); letter-spacing: -.02em; }
+.pill.crit { border-color: #5c3527; color: var(--crit); }
+.reasoning { margin: .8rem 0 0; color: var(--muted); font-size: .88rem; font-style: italic; }
+
+/* ---- panels ---- */
+.panels {
+  display: grid; gap: 1.1rem; margin-top: 1.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+}
+.panel {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.1rem 1.2rem 1rem;
+}
+.panel .eyebrow { margin-bottom: .5rem; }
+
+/* ---- promises ---- */
+.promise-figures { display: flex; gap: 2rem; margin: 1rem 0 .9rem; }
+.promise-big { display: block; font-size: 1.8rem; font-weight: 700; letter-spacing: -.02em; }
+.promise-label { font-size: .78rem; color: var(--muted); }
+.accent-text { color: var(--accent); }
+.crit-text { color: var(--crit); }
+.promise-bar { margin-bottom: .9rem; }
+.promise-note { margin: 0; font-size: .82rem; color: var(--muted); }
+
+/* ---- honest failures ---- */
+.failures { margin-top: 1.6rem; }
+.failures-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.failures-sub { margin: .35rem 0 0; color: var(--muted); font-size: .87rem; }
+.filters { display: flex; gap: .4rem; flex-wrap: wrap; }
+.chip {
+  background: transparent; border: 1px solid var(--line); color: var(--muted);
+  border-radius: 99px; padding: .25rem .7rem; font-size: .74rem;
+  cursor: pointer; font-family: inherit;
+}
+.chip:hover { border-color: var(--accent); color: var(--ink); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #06120c; font-weight: 600; }
+
+/* Scrolls, never paginates. SPEC 2.5 panel 3 is deliberately complete. */
+.table-scroll { max-height: 32rem; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+thead th {
+  position: sticky; top: 0; background: #1b2429; text-align: left;
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; padding: .6rem .8rem;
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+tbody td { padding: .5rem .8rem; border-bottom: 1px solid #1f2a2f; vertical-align: top; }
+tbody tr:hover td { background: #1b2429; }
+tbody tr.vetoed td { background: #24160f; }
+tbody tr.vetoed:hover td { background: #2c1b13; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { font-size: .82rem; color: var(--muted); }
+td.rules { display: flex; gap: .3rem; flex-wrap: wrap; }
+.tag {
+  background: #1f2a2f; border: 1px solid var(--line); border-radius: 4px;
+  padding: .1rem .4rem; font-size: .7rem; color: var(--muted); white-space: nowrap;
+}
+.tag.hard { border-color: #4a3a1a; color: var(--warn); }
+.tag.veto { border-color: #5c3527; color: var(--crit); }

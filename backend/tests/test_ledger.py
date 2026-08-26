@@ -215,13 +215,18 @@ def test_false_positive_cost_counts_only_unrecovered_records(tmp_path: Path) -> 
     assert agg["totals"]["false_positive_cost_paise"] == ATTEMPT_COST_PAISE
 
 
-def test_attempts_per_recovery_is_never_below_one_when_debits_recovered(
-    tmp_path: Path,
-) -> None:
-    """Guards the 0.28 bug: promise-kept recoveries cost no debit and must not dilute it."""
+def test_attempts_per_recovery_is_never_below_one(tmp_path: Path) -> None:
+    """Guards both regressions: the 0.28 bug and the 0.99 one.
+
+    A card labelled "attempts per recovery" must never read below 1.0 — fewer than one
+    attempt per recovery is not something a payments team can act on. Promise-kept
+    recoveries cost no debit and must not be folded into this denominator.
+    """
     ledger = Ledger(tmp_path / "ledger.jsonl")
     ledger.open()
+    # Recovered by debit on the first try.
     ledger.append(row_for(tmp_path, outcome=Outcome.RECOVERED))
+    # Recovered by a promise, no debit ever attempted. Must not drag the mean down.
     ledger.append(
         row_for(
             tmp_path,
@@ -232,17 +237,31 @@ def test_attempts_per_recovery_is_never_below_one_when_debits_recovered(
     )
 
     agg = ledger.aggregate(run_id="r", seed=42, n=2, use_llm=False, terminal_states={})
-    # One recovered by debit (1 attempt), one by promise (0 attempts) -> mean 0.5.
-    # The statistic is documented as attempts among recovered records, so 0.5 is correct
-    # here; what must never happen is a debit-only run reporting below 1.0.
-    debit_only = Ledger(tmp_path / "b.jsonl")
-    debit_only.open()
-    debit_only.append(row_for(tmp_path, outcome=Outcome.RECOVERED))
-    agg2 = debit_only.aggregate(
-        run_id="r", seed=42, n=1, use_llm=False, terminal_states={}
+    assert agg["totals"]["attempts_per_recovery"] == 1.0
+
+
+def test_attempts_per_recovery_counts_retries(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+    ledger.open()
+    ledger.append(row_for(tmp_path, outcome=Outcome.FAILED, recovered_paise=0))
+    ledger.append(
+        row_for(tmp_path, sim_ts=NOW + timedelta(hours=24), outcome=Outcome.FAILED, recovered_paise=0)
     )
-    assert agg2["totals"]["attempts_per_recovery"] >= 1.0
-    assert agg["totals"]["attempts_per_recovery"] > 0
+    ledger.append(
+        row_for(tmp_path, sim_ts=NOW + timedelta(hours=48), outcome=Outcome.RECOVERED)
+    )
+
+    agg = ledger.aggregate(run_id="r", seed=42, n=1, use_llm=False, terminal_states={})
+    assert agg["totals"]["attempts_per_recovery"] == 3.0
+
+
+def test_attempts_per_recovery_is_zero_when_nothing_recovered(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+    ledger.open()
+    ledger.append(row_for(tmp_path, outcome=Outcome.FAILED, recovered_paise=0))
+
+    agg = ledger.aggregate(run_id="r", seed=42, n=1, use_llm=False, terminal_states={})
+    assert agg["totals"]["attempts_per_recovery"] == 0.0
 
 
 # --------------------------------------------------------------------------------------

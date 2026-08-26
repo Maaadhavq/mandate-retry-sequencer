@@ -349,6 +349,14 @@ def run_campaign(
     if n is not None:
         records = records[:n]
 
+    if decider is None and use_llm:
+        # Built here rather than at import time so the module never needs a key. With no
+        # key and no cache entry this still resolves to the deterministic fallback — the
+        # agent is an upgrade, not a dependency (SPEC §10.3).
+        from backend.app.decider import Decider as LiveDecider
+
+        decider = LiveDecider()
+
     ledger = Ledger(ledger_path) if ledger_path else Ledger()
     runner = BatchRunner(
         records=records,

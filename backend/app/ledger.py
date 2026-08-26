@@ -252,12 +252,20 @@ def _cohort(rows: Iterable[LedgerRow], key: str) -> list[dict]:
 
 
 def _attempts_per_recovery(rows: Iterable[LedgerRow]) -> float:
-    """Mean debit attempts spent on each record that was recovered.
+    """Mean debit attempts spent on each record recovered *by a debit*.
 
-    Deliberately *not* total-attempts / total-recoveries. Promise-kept recoveries cost no
-    debit, so that ratio drops below 1.0 and reads as nonsense on a dashboard — the first
-    real run of this pipeline reported 0.28. Averaging over recovered records answers the
-    question the card actually asks: when this works, how many tries did it take?
+    The denominator is deliberately narrow, and it took two passes to get right:
+
+    - total-attempts / total-recoveries reported **0.28** on the first real run, because
+      scheduled retries never fired and almost no debits happened.
+    - averaging over *all* recovered records reported **0.99**, because a promise kept
+      without a prior debit contributes a zero and drags the mean under one.
+
+    Both read as nonsense on a card labelled "attempts per recovery" — fewer than one
+    attempt per recovery is not a thing a payments team can act on. Restricting the
+    denominator to debit-recovered records makes the number answer the question the label
+    asks: when a debit works, how many tries did it take? Promise recoveries have their own
+    panel and are not silently folded in here.
     """
     rows = list(rows)
     debits: Counter[str] = Counter()
@@ -265,10 +273,14 @@ def _attempts_per_recovery(rows: Iterable[LedgerRow]) -> float:
         if row.attempt_cost_paise > 0:
             debits[row.row_id] += 1
 
-    recovered_ids = {r.row_id for r in rows if r.recovered_paise > 0}
-    if not recovered_ids:
+    debit_recovered = {
+        r.row_id
+        for r in rows
+        if r.outcome == Outcome.RECOVERED.value and r.recovered_paise > 0
+    }
+    if not debit_recovered:
         return 0.0
-    return sum(debits.get(row_id, 0) for row_id in recovered_ids) / len(recovered_ids)
+    return sum(debits.get(row_id, 0) for row_id in debit_recovered) / len(debit_recovered)
 
 
 def _attempts_histogram(rows: Iterable[LedgerRow]) -> list[dict]:

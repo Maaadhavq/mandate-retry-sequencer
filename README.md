@@ -7,8 +7,9 @@ recoverability, decides an intervention, refuses anything the compliance rules f
 against a simulated payment rail over a 14-day campaign, and reports money recovered against money
 at risk — with every rupee traceable to a row in an append-only ledger.
 
-> **Status: Gate A.** The skeleton runs and the API contract is frozen. The pipeline is not wired
-> yet, so `/batch/run` returns clearly-fake stub figures. See [SPEC.md](SPEC.md) §10 for the gates.
+> **Status: Gate C.** The pipeline is live end to end. On the committed seed it recovers
+> **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records, with 187 stopped by a hard
+> rule and every rupee traceable to a ledger row. 152 tests. See [SPEC.md](SPEC.md) §10.
 
 ---
 
@@ -17,9 +18,25 @@ at risk — with every rupee traceable to a row in an append-only ledger.
 Requires [uv](https://docs.astral.sh/uv/) and Node 18+. **No API key is needed.**
 
 ```bash
-uv sync --extra dev                                    # creates .venv on Python 3.12
+uv sync --extra dev                    # creates .venv on Python 3.12
+
+# Generate the data. Both sets are needed and neither is committed - they are
+# reproducible byte-for-byte from these two commands (SPEC 2.1).
+.venv/Scripts/python -m backend.scripts.generate_data --seed 42   --n 500  --name batch
+.venv/Scripts/python -m backend.scripts.generate_data --seed 1042 --n 8000 --name corpus --split
+
 .venv/Scripts/python -m uvicorn backend.app.main:app --port 8000
 ```
+
+The trained scorer (`models/scorer.txt`) **is committed**, so you do not need to train to run the
+demo. To retrain it from the corpus and see the metrics:
+
+```bash
+.venv/Scripts/python -m backend.scripts.train_scorer --prove-seal
+```
+
+`--prove-seal` demonstrates that the holdout cannot be read before the model is fit - the guard
+raises rather than quietly returning a better-looking number.
 
 In a second terminal:
 
@@ -35,6 +52,16 @@ On macOS or Linux, use `.venv/bin/python` in place of `.venv/Scripts/python`.
 
 ```bash
 .venv/Scripts/python -m pytest
+```
+
+### Check the headline figure yourself
+
+After pressing **Run batch**, re-derive the total straight from the ledger. This script
+deliberately does not import `ledger.py` - if it shared the aggregation code, agreement would be a
+tautology rather than a check (SPEC 8.2 gate 2):
+
+```bash
+.venv/Scripts/python -m backend.scripts.verify_totals
 ```
 
 ---
@@ -83,8 +110,8 @@ It does not here, because decisions resolve in three layers (SPEC §4.3):
 A hard rule always beats the score, and always beats the agent. An agent proposal is a request, not
 an authority — it is re-checked against rules 1–4 before anything executes.
 
-Full design in [ARCHITECTURE.md](ARCHITECTURE.md) *(written at Gate E)*. The contract this is built
-against is [SPEC.md](SPEC.md).
+Full design in [ARCHITECTURE.md](ARCHITECTURE.md). The contract this is built against is
+[SPEC.md](SPEC.md), which is also where every design decision and every reversal is recorded.
 
 ---
 

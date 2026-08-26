@@ -383,6 +383,33 @@ def generate(
     return records, truth
 
 
+def recovery_probability(
+    row: dict, *, edtech_off_cycle: bool | None, delay_hours: float
+) -> float:
+    """Hidden P(recover) for one record at an arbitrary realised delay. SPEC §5.2.
+
+    The executor needs this because the pipeline chooses delays the historical data never
+    used — a `RETRY_NOW` has delay 0, which is not one of the three windows cached in the
+    truth sidecar. Evaluating the same function the labels came from is what keeps the
+    simulated outcomes consistent with what the scorer was trained to predict.
+
+    `edtech_off_cycle` comes from the truth sidecar, never from a feature column.
+    """
+    is_edtech = row["merchant_category"] == MerchantCategory.EDTECH.value
+    p = _ground_truth_probability(
+        failure_reason=np.array([row["failure_reason"]]),
+        days_to_payday=np.array([float(row["days_to_payday"])]),
+        attempt_number=np.array([float(row["attempt_number"])]),
+        ticket_size_paise=np.array([float(row["ticket_size_paise"])]),
+        days_since_last_success=np.array([float(row["days_since_last_success"])]),
+        mandate_age_days=np.array([float(row["mandate_age_days"])]),
+        edtech_off_cycle=np.array([bool(edtech_off_cycle)]),
+        is_edtech=np.array([is_edtech]),
+        delay_hours=np.array([float(delay_hours)]),
+    )
+    return float(p[0])
+
+
 def _unique_row_ids(rng: np.random.Generator, n: int) -> list[str]:
     """`mrs_<6 hex>`, unique across the whole batch and therefore across both splits."""
     seen: set[str] = set()

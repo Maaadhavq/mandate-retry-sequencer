@@ -22,6 +22,23 @@ from backend.app.policy import Action, FailureReason
 SIM_START = datetime.fromisoformat(policy.SIM_START_ISO)
 HORIZON_END = SIM_START + timedelta(days=policy.HORIZON_DAYS)
 
+#: Rule tags that mean a hard rule stopped the record, as opposed to a score band.
+#: Exported so the ledger can label failures without restating the names — two copies of
+#: a string set is how a dashboard starts silently under-counting "stopped by a rule".
+HARD_RULES: frozenset[str] = frozenset(
+    {
+        "hard_revoked_mandate",
+        "hard_max_attempts",
+        "hard_cooling_period",
+        "hard_horizon_exhausted",
+    }
+)
+
+#: Tags emitted by the score-band path. Exhaustive across [0.0, 1.0] by construction.
+BAND_RULES: frozenset[str] = frozenset(
+    {"band_high", "band_mid_upper", "band_mid_lower", "band_low"}
+)
+
 
 def hours_since_last_attempt(record: MandateRecord, now: datetime) -> float:
     return (now - record.last_attempt_at).total_seconds() / 3600.0

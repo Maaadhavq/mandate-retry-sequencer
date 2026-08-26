@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import policy
@@ -51,11 +51,11 @@ def health() -> HealthResponse:
 
 
 def _stub_response(req: BatchRunRequest) -> BatchRunResponse:
-    """Placeholder with the correct shape and obviously-fake numbers.
+    """Gate-A placeholder. Retained only as the frozen-shape reference for tests.
 
-    Deliberately not zeros: a dashboard built against all-zeros hides layout bugs that
-    only appear once real figures arrive. Deliberately not plausible either — nobody
-    should ever mistake a stub run for a real one.
+    No longer served: `/batch/run` runs the real pipeline as of Gate B. Kept because a
+    test asserts the live response still matches this shape field for field, which is how
+    the §7.2 freeze stays enforced rather than merely promised.
     """
     return BatchRunResponse(
         run_id=f"run_{uuid.uuid4().hex[:8]}",
@@ -102,6 +102,18 @@ def _stub_response(req: BatchRunRequest) -> BatchRunResponse:
 def run_batch(req: BatchRunRequest) -> BatchRunResponse:
     """Run a recovery campaign over a batch of failed mandate debits.
 
-    STUB until Gate B. See SPEC §10.2.
+    Gate B: the stub beneath this is gone and the shape above it did not change, which was
+    the point of freezing §7.2 before any of it existed.
+
+    Missing artefacts surface as a 503 carrying the command that fixes them. A judge who
+    clones the repo and calls this before generating data should get a sentence, not a
+    stack trace (SPEC §8.4).
     """
-    return _stub_response(req)
+    from backend.app.runner import run_campaign
+
+    try:
+        payload = run_campaign(seed=req.seed, n=req.n, use_llm=req.use_llm)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return BatchRunResponse.model_validate(payload)

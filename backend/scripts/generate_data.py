@@ -370,47 +370,72 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+def _write_truth(path: Path, payload: dict) -> None:
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        json.dump(payload, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--n", type=int, default=DEFAULT_N)
     parser.add_argument("--out-dir", type=Path, default=Path("data"))
+    parser.add_argument(
+        "--name",
+        default="batch",
+        help="output stem: 'batch' for the operational set, 'corpus' for the modelling set",
+    )
+    parser.add_argument(
+        "--split",
+        action="store_true",
+        help="write an 80/20 train/holdout split. SPEC §2.1: the modelling corpus is "
+        "split, the operational batch is not — it is never fitted on.",
+    )
     args = parser.parse_args()
 
     records, truth = generate(n=args.n, seed=args.seed)
-
-    # The split is written here, at generation time, before anything is modelled. Nothing
-    # downstream is permitted to re-split (CLAUDE.md, SPEC §2.1).
-    rng = np.random.default_rng(args.seed + 1)
-    order = rng.permutation(len(records))
-    n_holdout = int(round(len(records) * HOLDOUT_FRACTION))
-    holdout_idx = sorted(int(i) for i in order[:n_holdout])
-    train_idx = sorted(int(i) for i in order[n_holdout:])
-
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    _write_csv(args.out_dir / "batch_train.csv", [records[i] for i in train_idx])
-    _write_csv(args.out_dir / "batch_holdout.csv", [records[i] for i in holdout_idx])
 
     payload = {
         "seed": args.seed,
         "n": args.n,
         "noise_rate": NOISE_RATE,
-        "holdout_fraction": HOLDOUT_FRACTION,
-        "split": {
-            "train": [records[i]["row_id"] for i in train_idx],
-            "holdout": [records[i]["row_id"] for i in holdout_idx],
-        },
         "rows": truth,
     }
-    with (args.out_dir / "ground_truth.json").open("w", encoding="utf-8", newline="") as fh:
-        json.dump(payload, fh, indent=2, sort_keys=True)
-        fh.write("\n")
+    truth_path = args.out_dir / f"{args.name}_truth.json"
 
+    print(f"seed={args.seed} n={args.n} name={args.name}")
+
+    if args.split:
+        # Written here, at generation time, before anything is modelled. Nothing
+        # downstream is permitted to re-split (CLAUDE.md, SPEC §2.1).
+        rng = np.random.default_rng(args.seed + 1)
+        order = rng.permutation(len(records))
+        n_holdout = int(round(len(records) * HOLDOUT_FRACTION))
+        holdout_idx = sorted(int(i) for i in order[:n_holdout])
+        train_idx = sorted(int(i) for i in order[n_holdout:])
+
+        train_path = args.out_dir / f"{args.name}_train.csv"
+        holdout_path = args.out_dir / f"{args.name}_holdout.csv"
+        _write_csv(train_path, [records[i] for i in train_idx])
+        _write_csv(holdout_path, [records[i] for i in holdout_idx])
+
+        payload["holdout_fraction"] = HOLDOUT_FRACTION
+        payload["split"] = {
+            "train": [records[i]["row_id"] for i in train_idx],
+            "holdout": [records[i]["row_id"] for i in holdout_idx],
+        }
+        print(f"  train   {len(train_idx):>5}  ->  {train_path}")
+        print(f"  holdout {len(holdout_idx):>5}  ->  {holdout_path}")
+    else:
+        batch_path = args.out_dir / f"{args.name}.csv"
+        _write_csv(batch_path, records)
+        print(f"  batch   {len(records):>5}  ->  {batch_path}")
+
+    _write_truth(truth_path, payload)
     recovered = sum(r["recovered"] for r in records)
-    print(f"seed={args.seed} n={args.n}")
-    print(f"  train   {len(train_idx):>4}  ->  {args.out_dir / 'batch_train.csv'}")
-    print(f"  holdout {len(holdout_idx):>4}  ->  {args.out_dir / 'batch_holdout.csv'}")
-    print(f"  truth        ->  {args.out_dir / 'ground_truth.json'}")
+    print(f"  truth         ->  {truth_path}")
     print(f"  recovered {recovered}/{args.n} ({recovered / args.n:.1%})")
 
 

@@ -17,6 +17,7 @@ import pytest
 
 from backend.app.policy import MAX_ATTEMPTS, RETRY_WINDOWS_HOURS, FailureReason, MerchantCategory
 from backend.scripts.generate_data import (
+    CSV_COLUMNS,
     NOISE_RATE,
     TICKET_MAX_PAISE,
     TICKET_MIN_PAISE,
@@ -28,24 +29,26 @@ from backend.scripts.generate_data import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def run_generator(out_dir: Path, seed: int, n: int = 200) -> None:
+def run_generator(
+    out_dir: Path, seed: int, n: int = 200, *, name: str = "corpus", split: bool = True
+):
     """Invoke the CLI the way the README does, so the tests cover the real entry point."""
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "backend.scripts.generate_data",
-            "--seed",
-            str(seed),
-            "--n",
-            str(n),
-            "--out-dir",
-            str(out_dir),
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
+    argv = [
+        sys.executable,
+        "-m",
+        "backend.scripts.generate_data",
+        "--seed",
+        str(seed),
+        "--n",
+        str(n),
+        "--out-dir",
+        str(out_dir),
+        "--name",
+        name,
+    ]
+    if split:
+        argv.append("--split")
+    result = subprocess.run(argv, cwd=REPO_ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     return result
 
@@ -60,7 +63,7 @@ def test_same_seed_is_byte_identical(tmp_path: Path) -> None:
     run_generator(a, seed=42)
     run_generator(b, seed=42)
 
-    for name in ("batch_train.csv", "batch_holdout.csv", "ground_truth.json"):
+    for name in ("corpus_train.csv", "corpus_holdout.csv", "corpus_truth.json"):
         assert (a / name).read_bytes() == (b / name).read_bytes(), f"{name} is not reproducible"
 
 
@@ -69,12 +72,12 @@ def test_different_seed_differs(tmp_path: Path) -> None:
     run_generator(a, seed=42)
     run_generator(b, seed=43)
 
-    assert (a / "batch_train.csv").read_bytes() != (b / "batch_train.csv").read_bytes()
+    assert (a / "corpus_train.csv").read_bytes() != (b / "corpus_train.csv").read_bytes()
 
 
 def test_no_row_id_appears_in_both_splits(tmp_path: Path) -> None:
     run_generator(tmp_path, seed=42)
-    truth = json.loads((tmp_path / "ground_truth.json").read_text(encoding="utf-8"))
+    truth = json.loads((tmp_path / "corpus_truth.json").read_text(encoding="utf-8"))
 
     train = set(truth["split"]["train"])
     holdout = set(truth["split"]["holdout"])
@@ -145,7 +148,7 @@ def test_row_ids_are_unique() -> None:
 def test_ground_truth_is_never_a_column(tmp_path: Path) -> None:
     """The hidden probability must not leak into the training data. SPEC §2.2."""
     run_generator(tmp_path, seed=42)
-    header = (tmp_path / "batch_train.csv").read_text(encoding="utf-8").splitlines()[0]
+    header = (tmp_path / "corpus_train.csv").read_text(encoding="utf-8").splitlines()[0]
 
     for leak in ("p_observed", "p_by_delay", "edtech_off_cycle", "observed_delay", "noise"):
         assert leak not in header, f"{leak} leaked into the CSV header"
@@ -297,10 +300,48 @@ def test_ground_truth_covers_every_retry_window() -> None:
 def test_holdout_split_is_written_at_generation_time(tmp_path: Path) -> None:
     """CLAUDE.md: batch_holdout.csv is not read before the model is fit."""
     run_generator(tmp_path, seed=42, n=200)
-    truth = json.loads((tmp_path / "ground_truth.json").read_text(encoding="utf-8"))
+    truth = json.loads((tmp_path / "corpus_truth.json").read_text(encoding="utf-8"))
 
-    holdout_rows = (tmp_path / "batch_holdout.csv").read_text(encoding="utf-8").splitlines()
+    holdout_rows = (tmp_path / "corpus_holdout.csv").read_text(encoding="utf-8").splitlines()
     assert len(holdout_rows) - 1 == len(truth["split"]["holdout"]) == 40
+
+
+# --------------------------------------------------------------------------------------
+# SPEC §2.1 — corpus and operational batch are separate datasets
+# --------------------------------------------------------------------------------------
+
+
+def test_batch_mode_writes_one_unsplit_file(tmp_path: Path) -> None:
+    """The operational batch is never split: it is not fitted on, so it has no holdout."""
+    run_generator(tmp_path, seed=42, n=500, name="batch", split=False)
+
+    assert (tmp_path / "batch.csv").exists()
+    assert (tmp_path / "batch_truth.json").exists()
+    assert not (tmp_path / "batch_train.csv").exists()
+    assert not (tmp_path / "batch_holdout.csv").exists()
+
+    rows = (tmp_path / "batch.csv").read_text(encoding="utf-8").splitlines()
+    assert len(rows) - 1 == 500
+
+    truth = json.loads((tmp_path / "batch_truth.json").read_text(encoding="utf-8"))
+    assert "split" not in truth, "the operational batch must not carry a train/holdout split"
+
+
+def test_operational_batch_does_not_appear_in_the_modelling_corpus() -> None:
+    """The leakage claim in SPEC §2.1, asserted on features rather than on row_id.
+
+    row_ids are drawn per dataset, so they are independent namespaces and a coincidental
+    id match would prove nothing either way. What matters is that no *record* the scorer
+    trained on is a record the demo batch later processes.
+    """
+    batch, _ = generate(n=500, seed=42)
+    corpus, _ = generate(n=8000, seed=1042)
+
+    def fingerprint(r: dict) -> tuple:
+        return tuple(r[c] for c in CSV_COLUMNS if c != "row_id")
+
+    overlap = {fingerprint(r) for r in batch} & {fingerprint(r) for r in corpus}
+    assert not overlap, f"{len(overlap)} operational records also appear in the corpus"
 
 
 @pytest.mark.parametrize("seed", [42, 43, 7])

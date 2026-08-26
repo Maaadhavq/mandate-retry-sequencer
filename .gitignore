@@ -15,10 +15,10 @@ frontend/.vite/
 .env.*
 !.env.example
 
-# Generated data — reproducible from `python backend/scripts/generate_data.py --seed 42`
+# Generated data — reproducible from the two commands in CLAUDE.md
 data/*.csv
 data/*.jsonl
-data/ground_truth.json
+data/*_truth.json
 
 # NOT ignored, deliberately:
 #   cache/llm/*.json  — committed so a clone with no API key reproduces the run (SPEC §4.3)

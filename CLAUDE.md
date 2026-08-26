@@ -7,7 +7,9 @@
 - api: `.venv/Scripts/python -m uvicorn backend.app.main:app --reload --port 8000`
 - ui: `cd frontend && npm run dev` (:5173)
 - test: `.venv/Scripts/python -m pytest` — run single tests while iterating, not the suite
-- data: `.venv/Scripts/python -m backend.scripts.generate_data --seed 42 --n 500`
+- data (both are needed; the batch is never fitted on — SPEC §2.1):
+  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 42 --n 500 --name batch`
+  - `.venv/Scripts/python -m backend.scripts.generate_data --seed 1042 --n 8000 --name corpus --split`
 - train: `.venv/Scripts/python -m backend.scripts.train_scorer`
 
 Python is 3.12 in `.venv`, managed by `uv`. Never use the system 3.14 — LightGBM and SHAP wheels break.

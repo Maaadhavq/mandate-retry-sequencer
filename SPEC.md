@@ -80,8 +80,24 @@ A float never touches a currency value.
 | `mandate_age_days` | int | 1–1095 |
 | `last_attempt_at` | ISO ts | drives the cooling-period rule |
 
-Batch size **500**, default seed **42**, 80/20 train/holdout split written **at generation time,
-before any modelling**.
+Two datasets come out of the same generator, and they are kept apart on purpose:
+
+| Dataset | Seed | Size | Purpose |
+|---|---|---|---|
+| **Operational batch** | 42 | 500 | What `POST /batch/run` processes and the dashboard shows. **Never fitted on.** |
+| **Modelling corpus** | 1042 | 8,000 | F2 trains here. Split 80/20 internally at generation time. |
+
+The corpus split is written **at generation time, before any modelling**. The operational
+batch is not part of either side of that split, so the 500 records the demo runs on are
+fully out of sample — there is no path by which the scorer can have seen them.
+
+*Why two.* An earlier revision trained on 400 of the 500 and reported AUC on the other 100.
+That is not a measurement: on 100 rows the AUC estimator's own 95% band is ~0.18 wide, so
+even a model that knew the true probability exactly would land inside a ±0.03 target band
+only **44.5%** of the time (measured, 400 resamples). 400 training rows is also too few to
+learn the payday interaction — the fitted model reached 0.71 against a 0.77 ceiling on the
+same sample. Separating the corpus from the batch fixes both, and strengthens the leakage
+claim rather than weakening it.
 
 ### 2.2 Ground truth — deliberately hard
 
@@ -106,8 +122,12 @@ Three properties are required:
 `revoked_mandate` recovery is **exactly 0.0, always**, with no noise applied. It is a hard rule,
 not a probability.
 
-Expected holdout AUC: **0.78–0.84**. Above 0.90 means the generator leaked something — investigate,
-do not celebrate. Below 0.70 is a build failure.
+Expected corpus-holdout AUC: **0.78–0.84**, reported with a bootstrap 95% CI. Above 0.90 means
+the generator leaked something — investigate, do not celebrate. Below 0.70 is a build failure.
+
+The band is checkable because the corpus holdout is 1,600 rows (sd ≈ 0.011), not 100. The
+measured population ceiling — ranking by the true hidden probability — is **0.824**, so a
+scorer at 0.90+ is reading something it should not be able to see.
 
 ### 2.3 Score bands
 
@@ -293,7 +313,9 @@ backend/
   tests/   test_generate_data.py test_scorer.py test_guardrails.py
            test_ledger.py test_decider.py test_e2e.py
 frontend/  src/ (React + Vite + Recharts)
-data/      batch_train.csv batch_holdout.csv ground_truth.json ledger.jsonl
+data/      batch.csv                          # operational, seed 42, n=500
+           corpus_train.csv corpus_holdout.csv # modelling, seed 1042, n=8000
+           ground_truth.json corpus_truth.json ledger.jsonl
 models/    scorer.txt metrics.json
 cache/llm/ <sha256>.json   # committed
 ARCHITECTURE.md  README.md  SPEC.md  CLAUDE.md
@@ -357,9 +379,10 @@ The definition of done. Every item produces evidence, not an assertion.
 - **F1:** two runs at `--seed 42` are byte-identical; `--seed 43` differs; no `row_id` in both
   splits; every `revoked_mandate` row has ground truth exactly `0.0`; all three failure reasons
   present at 5% or more each.
-- **F2:** holdout AUC in 0.78–0.84; precision and recall at 0.65 / 0.35 / 0.15; confusion matrix at
-  0.65; the holdout file is provably not read before the model is fit; same seed reproduces
-  `metrics.json` exactly.
+- **F2:** corpus-holdout AUC in 0.78–0.84 **with its bootstrap 95% CI reported alongside**;
+  precision and recall at 0.65 / 0.35 / 0.15; confusion matrix at 0.65; the holdout file is
+  provably not read before the model is fit; the operational batch is provably not read at all
+  during training; same seed reproduces `metrics.json` exactly.
 - **F3:** one test per rule, plus — revoked with score 0.99 still STOPs; `attempt_number 4` with
   score 0.99 still STOPs; 23.9h is cooling and 24.1h is not; every Decision has non-empty
   `rules_fired`; bands exhaustive and non-overlapping across `[0.0, 1.0]`.

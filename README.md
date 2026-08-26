@@ -7,9 +7,11 @@ recoverability, decides an intervention, refuses anything the compliance rules f
 against a simulated payment rail over a 14-day campaign, and reports money recovered against money
 at risk — with every rupee traceable to a row in an append-only ledger.
 
-> **Status: Gate C.** The pipeline is live end to end. On the committed seed it recovers
-> **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records, with 187 stopped by a hard
-> rule and every rupee traceable to a ledger row. 152 tests. See [SPEC.md](SPEC.md) §10.
+> **Status: gates A–D passed; E needs only the video.** The pipeline is live end to end. On the
+> committed seed it recovers **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records,
+> with 187 stopped by a hard rule, 11 agent-proposed retries vetoed by a compliance rule, and every
+> rupee traceable to a ledger row. **170 tests**, and a fresh clone with no API key reproduces every
+> figure. See [SPEC.md](SPEC.md) §10.
 
 ---
 
@@ -53,6 +55,17 @@ On macOS or Linux, use `.venv/bin/python` in place of `.venv/Scripts/python`.
 ```bash
 .venv/Scripts/python -m pytest
 ```
+
+### Ask why a record scored what it did
+
+Click any row in the honest-failures table, or:
+
+```bash
+curl -s localhost:8000/explain/mrs_805558
+```
+
+SHAP contributions in log-odds, plus a one-line summary. No API key needed — this is the
+explanation layer that works in the ablation.
 
 ### Check the headline figure yourself
 

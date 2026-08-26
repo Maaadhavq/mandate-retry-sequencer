@@ -113,11 +113,22 @@ Three properties are required:
    `days_to_payday - retry_delay_hours/24`, not of either alone.
 2. **Label noise.** ~8% of outcomes flip against the ground-truth probability. Real recovery data
    is not clean.
-3. **A blind spot.** `edtech` recovery follows a hidden academic fee cycle that is **not exposed as
-   a feature**. The scorer will systematically over-predict recovery for this cohort. This is
-   intentional: it gives the honest-failures panel a real cluster, gives the limitations section of
-   `ARCHITECTURE.md` something true to say, and gives you a genuine answer when a panel asks where
-   the model is weak.
+3. **A blind spot, produced by drift.** `edtech` recovery follows a hidden academic fee cycle that
+   is **not exposed as a feature**. The corpus is generated mostly *in-cycle*
+   (`--edtech-off-cycle 0.45`); the operational batch is generated mostly *off-cycle*
+   (`--edtech-off-cycle 0.85`). The scorer therefore systematically **over-predicts** recovery for
+   edtech on the batch it is actually run against.
+
+   The drift is the mechanism, and it has to be. A model trained and evaluated on one distribution
+   comes out calibrated per cohort by construction — that is what fitting does. Two earlier attempts
+   confirmed it: an independent hidden draw left edtech at −0.028 over-prediction (slightly *under*),
+   and correlating the hidden cycle with `days_to_payday` only made it learnable, leaving +0.008.
+   Cohort-level over-prediction is a property of *shift*, not of hidden variables.
+
+   This is also the truthful version of the story. Seasonal cohorts drift, nobody ships a feature for
+   the school-fees calendar, and the model goes stale in exactly one segment. It gives the
+   honest-failures panel a real cluster, gives `ARCHITECTURE.md`'s limitations section something true
+   to say, and gives a genuine answer when a panel asks where the model is weak.
 
 `revoked_mandate` recovery is **exactly 0.0, always**, with no noise applied. It is a hard rule,
 not a probability.
@@ -307,7 +318,7 @@ Adds one cohort to the dashboard: promises made, kept, broken, ₹ recovered via
 
 ```
 backend/
-  app/     main.py policy.py guardrails.py decider.py llm_cache.py
+  app/     main.py policy.py guardrails.py scorer.py decider.py llm_cache.py
            ledger.py executor.py clock.py explain.py
   scripts/ generate_data.py train_scorer.py verify_totals.py
   tests/   test_generate_data.py test_scorer.py test_guardrails.py

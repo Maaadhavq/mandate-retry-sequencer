@@ -1,0 +1,96 @@
+{
+  "auc": 0.7839,
+  "auc_ci95": [
+    0.7593,
+    0.8071
+  ],
+  "best_iteration": 89,
+  "cohort_calibration": [
+    {
+      "actual_recovery_rate": 0.231,
+      "mean_predicted": 0.2333,
+      "merchant_category": "edtech",
+      "n": 368,
+      "over_prediction": 0.0023
+    },
+    {
+      "actual_recovery_rate": 0.25,
+      "mean_predicted": 0.2884,
+      "merchant_category": "fitness",
+      "n": 256,
+      "over_prediction": 0.0384
+    },
+    {
+      "actual_recovery_rate": 0.2406,
+      "mean_predicted": 0.2866,
+      "merchant_category": "ott",
+      "n": 320,
+      "over_prediction": 0.046
+    },
+    {
+      "actual_recovery_rate": 0.2481,
+      "mean_predicted": 0.2592,
+      "merchant_category": "saas",
+      "n": 387,
+      "over_prediction": 0.0112
+    },
+    {
+      "actual_recovery_rate": 0.2862,
+      "mean_predicted": 0.2662,
+      "merchant_category": "utilities",
+      "n": 269,
+      "over_prediction": -0.0201
+    }
+  ],
+  "confusion_at_0.65": {
+    "false_negative": 367,
+    "false_positive": 16,
+    "threshold": 0.65,
+    "true_negative": 1185,
+    "true_positive": 32
+  },
+  "holdout_positive_rate": 0.2494,
+  "n_fit": 5440,
+  "n_holdout": 1600,
+  "n_train": 6400,
+  "n_valid_early_stopping": 960,
+  "num_boost_round": 3000,
+  "params": {
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "deterministic": true,
+    "feature_fraction": 0.9,
+    "force_row_wise": true,
+    "lambda_l2": 1.0,
+    "learning_rate": 0.03,
+    "metric": "auc",
+    "min_data_in_leaf": 40,
+    "num_leaves": 31,
+    "num_threads": 1,
+    "objective": "binary",
+    "verbosity": -1
+  },
+  "population_oracle_auc": 0.824,
+  "seed": 42,
+  "thresholds": [
+    {
+      "precision": 0.6667,
+      "predicted_positive": 48,
+      "recall": 0.0802,
+      "threshold": 0.65
+    },
+    {
+      "precision": 0.4851,
+      "predicted_positive": 536,
+      "recall": 0.6516,
+      "threshold": 0.35
+    },
+    {
+      "precision": 0.3881,
+      "predicted_positive": 876,
+      "recall": 0.8521,
+      "threshold": 0.15
+    }
+  ],
+  "train_positive_rate": 0.2628
+}

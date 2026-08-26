@@ -11,12 +11,13 @@ trivially learnable — see SPEC §2.2. Three properties are load-bearing:
    on or just after payday, i.e. it keys on `days_to_payday - delay_hours/24` rather than
    on either alone. For `technical_decline` the same term is near-inert.
 2. Label noise at NOISE_RATE — real recovery data is not clean.
-3. The `edtech` blind spot. Those rows are drawn with *observably favourable* features
-   while a hidden academic fee cycle suppresses actual recovery for most of them. The
-   scorer keys on the favourable observables and systematically over-predicts. The cycle
-   is never written to a CSV column, so this is not recoverable by the model — which is
-   the point: it gives the honest-failures panel a real cluster and ARCHITECTURE.md
-   something true to say about where the model is weak.
+3. The `edtech` blind spot, produced by *drift* between the two datasets. A hidden
+   academic fee cycle suppresses edtech recovery and is never a column. The corpus is
+   generated mostly in-cycle and the operational batch mostly off-cycle
+   (`--edtech-off-cycle`), so the scorer meets a shifted distribution at run time and
+   over-predicts that cohort. Drift is the mechanism because it has to be: a model fit
+   and scored on one distribution is calibrated per cohort by construction. See SPEC §2.2
+   for the two attempts that established this.
 
 `revoked_mandate` recovery is exactly 0.0 with no noise applied. It is a hard rule, not a
 probability, and the noise pass skips it entirely.
@@ -126,7 +127,28 @@ PAYDAY_SPREAD: Final[float] = 4.0
 ATTEMPT_DECAY: Final[float] = 0.86
 
 #: Hidden academic fee cycle for edtech. Never exposed as a column.
-EDTECH_OFF_CYCLE_SHARE: Final[float] = 0.80
+#:
+#: This is the DEFAULT base rate; the real lever is the --edtech-off-cycle flag, because
+#: the blind spot comes from the corpus and the batch being generated at different rates
+#: (0.45 vs 0.85). Two things that did NOT work, kept so they are not retried:
+#:
+#:   - an independent hidden draw           -> -0.028 over-prediction (slightly *under*)
+#:   - the draw correlated with days_to_payday -> +0.008
+#:
+#: Both fail for the same reason: merchant_category is a feature, so a model with enough
+#: rows learns edtech's intercept and comes out calibrated. Cohort-level over-prediction
+#: is a property of distribution shift, not of hidden variables.
+#:
+#: The payday correlation below is kept anyway. It does not create the blind spot, but it
+#: concentrates the failures on the rows whose visible features look best, which is what
+#: makes the honest-failures panel show high-confidence misses rather than a flat cohort.
+#:
+#: Domain reading: the academic fee calendar dominates. A mandate sitting right on payday
+#: during a between-terms month still fails, because the household is not paying school
+#: fees that month at all.
+EDTECH_OFF_CYCLE_BASE: Final[float] = 0.55
+EDTECH_OFF_CYCLE_PAYDAY_LIFT: Final[float] = 0.40
+EDTECH_PAYDAY_REFERENCE_DAYS: Final[float] = 12.0
 EDTECH_OFF_CYCLE_MULT: Final[float] = 0.18
 EDTECH_IN_CYCLE_MULT: Final[float] = 1.25
 
@@ -222,7 +244,9 @@ def _ground_truth_probability(
     return np.where(is_revoked, 0.0, p)
 
 
-def generate(n: int, seed: int) -> tuple[list[dict], dict]:
+def generate(
+    n: int, seed: int, edtech_off_cycle_base: float = EDTECH_OFF_CYCLE_BASE
+) -> tuple[list[dict], dict]:
     """Build `n` records plus the hidden ground-truth sidecar.
 
     Every draw below is a full-length array taken in a fixed order, including the ones
@@ -269,9 +293,19 @@ def generate(n: int, seed: int) -> tuple[list[dict], dict]:
     hours_stale = rng.uniform(STALE_MIN_HOURS_AGO, STALE_MAX_HOURS_AGO, size=n)
     hours_ago = np.where(in_cooling, hours_cooling, hours_stale)
 
-    # The hidden academic cycle. The historical delay is a constant, not a draw — see
-    # LEGACY_RETRY_DELAY_HOURS for why that is load-bearing rather than a simplification.
-    edtech_off_cycle = rng.random(n) < EDTECH_OFF_CYCLE_SHARE
+    # The hidden academic cycle, drawn *against* the payday feature so that the edtech
+    # rows which look best to a scorer are the ones most likely to be off-cycle. See
+    # EDTECH_OFF_CYCLE_BASE for why an independent draw does not produce a blind spot.
+    off_cycle_p = np.clip(
+        edtech_off_cycle_base
+        + EDTECH_OFF_CYCLE_PAYDAY_LIFT
+        * (1.0 - np.clip(days_to_payday / EDTECH_PAYDAY_REFERENCE_DAYS, 0.0, 1.0)),
+        0.0,
+        1.0,
+    )
+    edtech_off_cycle = rng.random(n) < off_cycle_p
+
+    # The historical delay is a constant, not a draw — see LEGACY_RETRY_DELAY_HOURS.
     observed_delay_hours = np.full(n, LEGACY_RETRY_DELAY_HOURS)
 
     row_ids = _unique_row_ids(rng, n)
@@ -387,6 +421,14 @@ def main() -> None:
         help="output stem: 'batch' for the operational set, 'corpus' for the modelling set",
     )
     parser.add_argument(
+        "--edtech-off-cycle",
+        type=float,
+        default=EDTECH_OFF_CYCLE_BASE,
+        help="base probability an edtech row is off-cycle. SPEC §2.2: the corpus is "
+        "generated mostly in-cycle (0.45) and the batch mostly off-cycle (0.85), so the "
+        "scorer meets a drifted distribution at run time.",
+    )
+    parser.add_argument(
         "--split",
         action="store_true",
         help="write an 80/20 train/holdout split. SPEC §2.1: the modelling corpus is "
@@ -394,18 +436,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    records, truth = generate(n=args.n, seed=args.seed)
+    records, truth = generate(
+        n=args.n, seed=args.seed, edtech_off_cycle_base=args.edtech_off_cycle
+    )
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     payload = {
         "seed": args.seed,
         "n": args.n,
         "noise_rate": NOISE_RATE,
+        "edtech_off_cycle_base": args.edtech_off_cycle,
         "rows": truth,
     }
     truth_path = args.out_dir / f"{args.name}_truth.json"
 
-    print(f"seed={args.seed} n={args.n} name={args.name}")
+    print(f"seed={args.seed} n={args.n} name={args.name} edtech_off_cycle={args.edtech_off_cycle}")
 
     if args.split:
         # Written here, at generation time, before anything is modelled. Nothing

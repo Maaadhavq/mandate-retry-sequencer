@@ -348,12 +348,42 @@ def test_ties_within_a_tick_resolve_by_row_id() -> None:
     assert [w.row_id for w in due] == ["mrs_00000a", "mrs_00000b", "mrs_00000c"]
 
 
-def test_clock_stops_at_the_horizon() -> None:
+def test_a_wake_past_the_horizon_fires_once_in_the_sweep() -> None:
+    """The horizon sweep. A record past the horizon is woken exactly once, at HORIZON_END.
+
+    It used to be dropped silently, which made guardrail rule 4 unreachable from the
+    pipeline and left expired records with no ledger row saying why they stopped. Running
+    out of campaign is a decision, and SPEC §5.1 wants a row for every decision.
+    """
     clock = SimClock()
     clock.schedule_in("mrs_000001", HORIZON_DAYS * 24 + 48, WakeReason.SCHEDULED_RETRY)
 
     ticks = list(clock.run())
-    assert ticks == [], "a wake past the horizon should never fire"
+
+    assert len(ticks) == 1, "the sweep should fire exactly once"
+    swept_at, due = ticks[0]
+    assert swept_at == clock.end
+    assert [w.row_id for w in due] == ["mrs_000001"]
+
+
+def test_the_sweep_does_not_wake_already_terminal_records() -> None:
+    clock = SimClock()
+    clock.schedule_in("mrs_000001", HORIZON_DAYS * 24 + 48, WakeReason.SCHEDULED_RETRY)
+    clock.schedule_in("mrs_000002", HORIZON_DAYS * 24 + 48, WakeReason.SCHEDULED_RETRY)
+    clock.finish("mrs_000001", TerminalState.RECOVERED)
+
+    ticks = list(clock.run())
+    assert [w.row_id for _, due in ticks for w in due] == ["mrs_000002"]
+
+
+def test_records_left_after_the_sweep_are_expired() -> None:
+    clock = SimClock()
+    clock.schedule_in("mrs_000001", HORIZON_DAYS * 24 + 48, WakeReason.SCHEDULED_RETRY)
+
+    for _, due in clock.run():
+        pass  # caller declines to terminate them
+    clock.expire_unfinished({"mrs_000001"})
+
     assert clock.terminal_states["mrs_000001"] is TerminalState.EXPIRED
 
 

@@ -240,6 +240,12 @@ screen.
   with a `cache_control` breakpoint; the per-record data goes in the user message. Assert
   `usage.cache_read_input_tokens > 0` after the first call — a zero means something volatile leaked
   into the prefix.
+
+  **The prefix must clear ~1024 tokens or caching silently never engages** — there is no error, the
+  hit rate is just zero. The first draft of the policy prompt was ~480 tokens and would have failed
+  this gate quietly. It now carries five worked examples spanning the decision boundaries and a
+  section on writing the audit-trail `reasoning` field, which takes it to ~1,280 tokens and is
+  content the agent needed anyway. A test asserts the length so a future trim cannot re-break it.
 - `max_tokens: 256`. No thinking configuration.
 - **Never** pass `temperature` — it is removed on current models and returns 400. Determinism comes
   from §4.3, not from sampling parameters.
@@ -479,7 +485,7 @@ re-derives the same paise from the ledger without importing `ledger.py`. 118 tes
 |---|---|---|
 | **A** ✅ — skeleton | `/health` returns ok; `/batch/run` returns the §7.2 shape as a stub; frontend renders six cards off it; `pytest` runs green on an empty suite | everything |
 | **B** ✅ — the hard gate | `/batch/run` returns **one real ₹ recovered figure, end to end**, using the deterministic fallback policy and **no LLM** | F5, F8, F9 |
-| **C** — agent live | agent decides the ambiguous band; §8.2 gate 4 produces a vetoed-proposal row; `--no-llm` ablation delta measured | video |
+| **C** ◐ — agent live | agent decides the ambiguous band; §8.2 gate 4 produces a vetoed-proposal row; `--no-llm` ablation delta measured | video |
 | **D** — hardened | §8.1 and §8.2 all green; secrets swept; §8.4 clone test passes with no API key set | submission |
 | **E** — deliverables | `ARCHITECTURE.md`, `README.md`, 5-minute video recorded, repo public | — |
 

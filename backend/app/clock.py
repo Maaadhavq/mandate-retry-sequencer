@@ -113,8 +113,27 @@ class SimClock:
                 due.sort(key=lambda w: w.row_id)
                 yield self.now, due
 
-        # Anything still queued when the horizon closes has run out of campaign.
+        # The horizon sweep. Anything still queued is woken once, at HORIZON_END, so the
+        # caller gets to write a terminating row for it.
+        #
+        # Without this the horizon was enforced silently by the loop above, which made
+        # guardrail rule 4 (`hard_horizon_exhausted`) unreachable from the pipeline — it
+        # only ever fired in unit tests — and left expired records with no ledger row
+        # saying why they stopped. Both are audit-trail holes: "we ran out of campaign" is
+        # a decision, and a decision that leaves no row is exactly what SPEC §5.1 forbids.
         self.now = self.end
-        for wake in self._heap:
-            self._terminal.setdefault(wake.row_id, TerminalState.EXPIRED)
+        if self._heap:
+            sweep = [w for w in self._heap if w.row_id not in self._terminal]
+            self._heap.clear()
+            if sweep:
+                sweep.sort(key=lambda w: w.row_id)
+                yield self.now, sweep
+
+        for row_id in {w.row_id for w in self._heap}:
+            self._terminal.setdefault(row_id, TerminalState.EXPIRED)
         self._heap.clear()
+
+    def expire_unfinished(self, row_ids: set[str]) -> None:
+        """Mark anything the sweep did not terminate as EXPIRED."""
+        for row_id in row_ids:
+            self._terminal.setdefault(row_id, TerminalState.EXPIRED)

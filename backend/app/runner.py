@@ -107,6 +107,9 @@ class BatchRunner:
         )
         self._state: dict[str, MandateRecord] = {r.row_id: r for r in records}
         self._promised: dict[str, int] = {}
+        #: Who authorised the retry currently booked for each row — so that if a hard
+        #: rule vetoes it when the window arrives, the ledger says whose proposal died.
+        self._booked_by: dict[str, AgentSource] = {}
 
     # -- the loop -----------------------------------------------------------------------
 
@@ -120,6 +123,8 @@ class BatchRunner:
         for now, due in clock.run():
             for wake in due:
                 self._handle(clock, wake.row_id, wake.reason, now, use_llm=use_llm)
+
+        clock.expire_unfinished(set(self._state))
 
         return self.ledger.aggregate(
             run_id=f"run_{uuid.uuid4().hex[:8]}",
@@ -155,7 +160,17 @@ class BatchRunner:
             # into the debit that was already authorised.
             hard = guardrails.evaluate(record, score, now)
             if set(hard.rules_fired) & guardrails.HARD_RULES:
-                self._apply(clock, record, hard, score, now, reason, AgentSource.DETERMINISTIC, "")
+                # The retry now sitting in this window was authorised earlier — by the
+                # agent, if it was the agent that booked it. A hard rule that has become
+                # true since is vetoing that proposal, so it is recorded as a veto rather
+                # than as a plain block. This is SPEC §8.2 gate 4 arising naturally:
+                # nothing is seeded, the record simply ran out of attempts or horizon
+                # between being scheduled and coming due.
+                vetoed = guardrails.validate_proposal(
+                    record, score, now, Action.RETRY_NOW, None
+                )
+                source = self._booked_by.get(record.row_id, AgentSource.DETERMINISTIC)
+                self._apply(clock, record, vetoed, score, now, reason, source, "")
                 return
             fire = Decision(
                 action=Action.RETRY_NOW,
@@ -169,7 +184,7 @@ class BatchRunner:
         source = AgentSource.DETERMINISTIC
         reasoning = ""
 
-        if decision.needs_agent and use_llm and self.decider is not None:
+        if decision.needs_agent and self.decider is not None and use_llm:
             action, delay, reasoning, source = self.decider.decide(record, score, now)
             # Every proposal goes back through the guardrails. A hard rule that fired
             # before the agent spoke still fires after it (SPEC §3, §8.2 gate 4).
@@ -194,7 +209,13 @@ class BatchRunner:
 
         if action is Action.STOP:
             self._write(record, decision, score, now, reason, Outcome.NOT_ATTEMPTED, 0, source, reasoning)
-            clock.finish(record.row_id, TerminalState.WRITTEN_OFF)
+            # Running out of campaign is not the same as being written off on the merits,
+            # and the dashboard distinguishes them.
+            expired = "hard_horizon_exhausted" in decision.rules_fired
+            clock.finish(
+                record.row_id,
+                TerminalState.EXPIRED if expired else TerminalState.WRITTEN_OFF,
+            )
             return
 
         if action is Action.BLOCKED_COOLING:
@@ -206,6 +227,7 @@ class BatchRunner:
         if action is Action.RETRY_SCHEDULED:
             # A scheduled retry consumes no attempt now; it books one for later.
             self._write(record, decision, score, now, reason, Outcome.NOT_ATTEMPTED, 0, source, reasoning)
+            self._booked_by[record.row_id] = source
             clock.schedule_in(
                 record.row_id, float(decision.retry_delay_hours), WakeReason.SCHEDULED_RETRY
             )

@@ -471,10 +471,14 @@ Nothing else on the critical path can start early — a scorer with no data is n
 
 ### 10.2 Gates
 
+**Status: A and B passed** (27 Aug). `/batch/run` returns ₹43,37,425 recovered of
+₹1,26,32,606 at risk over 500 records with no LLM in the loop, and `verify_totals.py`
+re-derives the same paise from the ledger without importing `ledger.py`. 118 tests.
+
 | Gate | Passes when | Blocks |
 |---|---|---|
-| **A** — skeleton | `/health` returns ok; `/batch/run` returns the §7.2 shape as a stub; frontend renders six cards off it; `pytest` runs green on an empty suite | everything |
-| **B** — the hard gate | `/batch/run` returns **one real ₹ recovered figure, end to end**, using the deterministic fallback policy and **no LLM** | F5, F8, F9 |
+| **A** ✅ — skeleton | `/health` returns ok; `/batch/run` returns the §7.2 shape as a stub; frontend renders six cards off it; `pytest` runs green on an empty suite | everything |
+| **B** ✅ — the hard gate | `/batch/run` returns **one real ₹ recovered figure, end to end**, using the deterministic fallback policy and **no LLM** | F5, F8, F9 |
 | **C** — agent live | agent decides the ambiguous band; §8.2 gate 4 produces a vetoed-proposal row; `--no-llm` ablation delta measured | video |
 | **D** — hardened | §8.1 and §8.2 all green; secrets swept; §8.4 clone test passes with no API key set | submission |
 | **E** — deliverables | `ARCHITECTURE.md`, `README.md`, 5-minute video recorded, repo public | — |

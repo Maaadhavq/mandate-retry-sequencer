@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Generated data — reproducible from `python backend/scripts/generate_data.py --seed 42`
+data/*.csv
+data/*.jsonl
+data/ground_truth.json
+
+# NOT ignored, deliberately:
+#   cache/llm/*.json  — committed so a clone with no API key reproduces the run (SPEC §4.3)
+#   models/*          — committed so the clone test does not require a training run
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,356 @@
+# Solo Builder's Claude Playbook — Company Hackathon, Planning → Deployment
+
+You're one person against teams of four. Your edge isn't typing faster; it's running
+**more parallel work streams than a solo human can** and **never being the bottleneck
+in the verification loop**. Everything below is organized around those two ideas.
+
+Timings assume a ~36-hour hackathon. Scale proportionally for 24h or 48h.
+
+---
+
+## Phase 0 — Before the clock starts (30–45 min, do it the night before)
+
+Setup done during the hackathon is setup stolen from building.
+
+**Install and warm up the surfaces you'll actually use.**
+
+| Surface | What you'll use it for |
+|---|---|
+| Terminal CLI (`claude`) | Main build loop |
+| Desktop app | Parallel sessions side by side, visual diff review |
+| Web / mobile (`claude.ai/code`, `claude --cloud`) | Kick off long jobs, keep working while walking to get food |
+| Chrome integration | Screenshot-driven UI iteration and live debugging |
+
+`claude --teleport` pulls a web/mobile session into your terminal; `/desktop` pushes a
+terminal session into the desktop app. Sessions aren't tied to one surface — use that
+when you step away from your laptop.
+
+**Company-hackathon housekeeping — settle this before hour 0, not at judging:**
+
+- Which data can leave internal systems? Assume "none" until told otherwise, and build
+  against synthetic or anonymized data. A great demo you can't show is worth zero.
+- Do you get access to internal APIs, a DB, or a design system? Ask for credentials
+  *now*; approvals take hours.
+- Where can you deploy? Company cloud account, or public (Vercel / Render / Fly / HF
+  Spaces)? Find out before you architect around one.
+- IP terms: know who owns what you build before you build it.
+
+**Set up your permissions once.** In the CLI, `/permissions` pre-approves tools you
+trust (`npm run *`, `git commit *`, your deploy CLI), and `/sandbox` lets sandboxed
+commands run without asking. On Pro/Max/Team plans, auto mode is the default starting
+mode for interactive terminal and VS Code sessions — a classifier reviews actions
+instead of you and blocks only what looks risky. Fewer approval prompts at 3am is worth
+real points.
+
+**Install the CLI tools Claude will reach for:** `gh` (GitHub), plus the CLI for
+whatever you'll deploy to (`vercel`, `flyctl`, `gcloud`, `aws`). CLI tools are the most
+context-efficient way for Claude to touch external services, and `gh` avoids
+unauthenticated rate limits.
+
+**Connect the MCP servers you'll want.** `claude mcp add --transport http notion
+https://mcp.notion.com/mcp` and similar for Figma, your issue tracker, or your database.
+If the hackathon gives you a Figma file or a Notion brief, wiring it in beats copy-paste.
+
+**Model choice.** Pick by the job, not by prestige:
+
+| Model | Use it for |
+|---|---|
+| `claude-opus-5` | Architecture, the hard debugging, anything agentic and long-running |
+| `claude-sonnet-5` | The main build loop — best speed/intelligence balance |
+| `claude-haiku-4-5-20251001` | Cheap high-volume calls *inside your product* (classification, extraction, routing) |
+
+If your app itself calls Claude, default to Sonnet for quality-facing calls and Haiku
+for anything you'll call thousands of times in a demo.
+
+---
+
+## Phase 1 — Hour 0–1: Pick the idea (don't skip this to "save time")
+
+Most solo hackathon failures are scoping failures, not coding failures. Spend the first
+hour deciding *what not to build*.
+
+Open a session and paste the problem statement, judging rubric, and any constraints
+verbatim. Then:
+
+```
+Here is the hackathon brief and judging rubric: [paste].
+I'm competing solo with roughly 30 build hours.
+
+Generate 8 candidate projects. For each give me: the one-sentence pitch, the single
+technical risk most likely to sink it, what the 90-second demo actually shows on
+screen, and a 1-5 score against each rubric line.
+
+Then rank them for a solo builder specifically — penalize anything needing data I
+don't have, infra approval, or a component that only works if three other things work.
+```
+
+Read the ranking, then argue with it. Ask "what would make #4 win over #1?" The point
+is to surface the risk you'd otherwise discover at hour 20.
+
+**Choose using this filter:** the winner is the idea whose *demo* is impressive and
+whose *hard part* is one thing, not three. Judges score what they see in 3 minutes.
+
+Once you've chosen, kill the session's context (`/clear`) before moving on.
+
+---
+
+## Phase 2 — Hour 1–2: Spec before code
+
+Have Claude interview you. This is the single highest-leverage hour of the event —
+it catches the decisions you'd otherwise make badly at 2am.
+
+```
+I want to build [one-line description of the chosen idea]. Interview me in detail
+using the AskUserQuestion tool.
+
+Ask about technical implementation, UI/UX, edge cases, concerns, and tradeoffs.
+Don't ask obvious questions — dig into the hard parts I might not have considered.
+Constraints: solo builder, ~30 hours left, must be deployed and demoable, [your data
+and infra constraints here].
+
+Keep interviewing until we've covered everything, then write a complete spec to SPEC.md.
+```
+
+A good SPEC.md names the files and interfaces involved, states what is **out of scope**,
+and ends with an end-to-end verification step that proves the feature works. Add a
+`## Cut list` section: features ranked by what you'll drop first when you run out of
+time. You will run out of time; decide now while you're rested.
+
+Then **start a fresh session** to execute it. Clean context focused entirely on
+implementation, with the spec on disk to reference.
+
+---
+
+## Phase 3 — Hour 2–4: Skeleton, then deploy *immediately*
+
+The most common solo-builder disaster is a working local app that has never been
+deployed, discovered at hour 33. Deploy a hello-world at hour 3.
+
+```
+Read SPEC.md. Scaffold the project skeleton only — no feature logic yet:
+[stack, e.g. Next.js frontend + FastAPI backend + Postgres].
+
+Include: a health-check endpoint, one stubbed end-to-end path from UI to API and back,
+env var handling with a .env.example, and a README with exact run commands.
+Then run it locally and show me it works.
+```
+
+Then, in the same session:
+
+```
+Deploy this skeleton to [Vercel/Fly/Render]. Use the CLI. Set up the env vars.
+When it's live, curl the deployed health endpoint and show me the response.
+Then write the deploy command into README.md so I can redeploy in one line.
+```
+
+Now write your `CLAUDE.md` — run `/init` to generate a starter from the project
+structure, then prune it hard. Keep only what Claude can't infer:
+
+```markdown
+# Commands
+- dev: `npm run dev` (frontend, :3000) / `uv run fastapi dev` (api, :8000)
+- test: `pytest -q` — run single tests, not the suite
+- deploy: `./deploy.sh` — IMPORTANT: never deploy without tests passing
+
+# Rules
+- Never commit .env. Secrets go in the platform's env config.
+- Demo data lives in seed/. Never point the demo at live company data.
+- Prefer boring, working solutions. This is a 36-hour build.
+```
+
+For each line ask: *would removing this cause Claude to make mistakes?* If not, cut it.
+A bloated CLAUDE.md gets ignored. Run `/context` to confirm it loaded.
+
+**Set up one deterministic guardrail.** Hooks run every time, unlike CLAUDE.md
+instructions which are advisory. Ask for it in plain language:
+
+```
+Write a hook that runs the formatter and the test suite after every file edit,
+and a hook that blocks any write to .env or to the seed/ directory.
+```
+
+---
+
+## Phase 4 — Hours 4–28: The build loop
+
+### The loop itself
+
+For each feature on the spec, one cycle:
+
+1. **Plan** (only when it's non-trivial). `Shift+Tab` until the status bar shows
+   `⏸ plan mode on`, or start with `claude --permission-mode plan`. Claude reads and
+   proposes without editing. `Ctrl+G` opens the plan in your editor to fix it directly.
+   If you could describe the diff in one sentence, skip planning — it has real overhead.
+2. **Implement**, always with the check attached to the same prompt.
+3. **Verify**, then commit.
+
+**Never send a prompt without a way to check the result.** Compare:
+
+> ✗ "add semantic search over the documents"
+
+> ✓ "add semantic search over the documents in seed/. Write tests first: querying
+> 'refund policy' must return doc_12 in the top 3; an empty query returns 400; a query
+> with no matches returns an empty list, not an error. Implement, run the tests, and
+> iterate until they pass. Show me the test output."
+
+Claude stops when the work *looks* done. Give it something that returns pass/fail and
+the loop closes without you. Ask for evidence — test output, the command it ran, a
+screenshot — rather than an assertion of success.
+
+For a check that should gate the whole session, set it as a `/goal` condition: a
+separate evaluator re-checks it after every turn and Claude keeps working until it
+resolves. For a hard deterministic gate, a Stop hook blocks the turn from ending until
+your script passes.
+
+### UI work: use screenshots, not adjectives
+
+Paste an image directly into the prompt. Then:
+
+```
+[paste screenshot or design] Implement this. Then take a screenshot of the result,
+compare it to the original, list the differences, and fix them.
+```
+
+With the Chrome integration Claude can drive the live page, read the console, and
+inspect network requests — which is how you debug "it works locally but the deployed
+version is blank" in five minutes instead of an hour.
+
+### Parallelism — this is your solo advantage
+
+You are one person, but you can run several Claudes. Pick your coordination level:
+
+- **Worktrees** — separate CLI sessions in isolated git checkouts, so edits don't
+  collide. Frontend polish in one, the ML pipeline in another.
+- **Desktop app** — multiple local sessions visually, each in its own worktree.
+- **Web / cloud sessions** — `claude --cloud`, then keep an eye on it from your phone.
+  Perfect for a long data-prep or training job while you eat.
+- **Agent view** (`claude agents`) — dispatch background sessions and watch them from
+  one screen. Research preview.
+- **`/batch <instruction>`** — splits a repetitive change across 5–30 subagents, each in
+  its own worktree opening a PR. For "convert all 40 components to the new design token
+  system" at hour 30.
+
+**Delegate research to subagents so it doesn't eat your main context:**
+
+```
+Use subagents to investigate how to stream token-by-token responses from FastAPI to
+the Next.js client, and whether anything in our current API layer already does this.
+Report back with a recommendation and code sketch — don't implement yet.
+```
+
+Subagents read in a separate context window and hand you back a summary. Your main
+session stays clean for implementation.
+
+**Writer/Reviewer pattern.** Session A implements; Session B, with fresh context, reviews
+`@src/whatever.ts` for edge cases and race conditions; you paste B's findings back into
+A. A fresh context reviews better because it isn't biased toward code it just wrote.
+
+### Context hygiene — the thing that actually degrades your night
+
+Performance drops as context fills. Non-negotiable habits:
+
+- `/clear` between unrelated tasks. Every time.
+- **After two failed corrections on the same bug, stop.** `/clear` and write a new,
+  sharper prompt that includes what you learned. A clean session with a better prompt
+  beats a long session full of dead ends, every time.
+- `/compact Focus on the API changes` when you need to keep going but trim.
+- `/btw` for side questions — the answer never enters conversation history.
+- `Esc` to interrupt the moment you see it going wrong; `Esc Esc` or `/rewind` to
+  restore earlier conversation *and* code state. Checkpoints only track Claude's file
+  edits, not bash side effects — so **commit to git constantly** anyway.
+- `/rename` your sessions (`api-work`, `demo-ui`) and treat them like branches.
+
+### Fatigue insurance
+
+At hour 20 your judgment is worse than Claude's. Before every commit after midnight:
+
+```
+/code-review
+```
+
+It reviews the current diff for bugs in a fresh subagent. Take the correctness findings,
+ignore the style ones — a reviewer asked to find gaps will always find some, and chasing
+all of them at hour 22 is how you ship an over-abstracted mess.
+
+---
+
+## Phase 5 — Hours 28–32: Harden and deploy for real
+
+```
+Read SPEC.md. Use a subagent to review the full diff against it. Check that every
+must-have requirement is implemented, the listed edge cases have tests, and nothing
+outside scope changed. Report gaps that affect correctness or the stated requirements —
+not style preferences.
+```
+
+Then the deployment checklist. Give it to Claude as one prompt:
+
+```
+Prepare this for demo. In order:
+1. Audit for secrets, hardcoded localhost URLs, and debug flags. Fix them.
+2. Confirm every env var needed in production is set on the platform.
+3. Add graceful failure for every external API call — the demo must degrade to a
+   friendly message, never a stack trace on screen.
+4. Add a seeded demo mode that works with zero network access, in case the venue wifi
+   dies. This is required, not optional.
+5. Deploy. Then hit every user-facing path on the deployed URL and show me the results.
+```
+
+**Point 4 is the one people skip and the one that ruins demos.** Venue wifi fails, rate
+limits hit, an API key expires mid-pitch. A `DEMO_MODE=true` path serving cached
+responses has saved more hackathon projects than any clever architecture.
+
+Also record a fallback video walkthrough of the working app. If everything breaks on
+stage, you still have something to show.
+
+---
+
+## Phase 6 — Hours 32–36: The parts that actually win
+
+Judges score the pitch, the README, and the demo. Many teams ship great code and lose
+here. Budget real time for it.
+
+```
+Read SPEC.md, the README, and the codebase. Write a 3-minute demo script:
+- The problem, in 20 seconds, in the language of [the judging audience].
+- A live click-path — exact clicks and exact inputs to type — that shows the hardest
+  technical thing we built.
+- Where the interesting engineering is, in one sentence a non-specialist gets.
+- The 5 questions judges are most likely to ask, with honest answers, including the
+  weakest part of what we built.
+```
+
+Then rehearse it against the deployed URL twice, timed. Type the exact inputs from the
+script — surprises found in rehearsal are free; surprises found on stage are not.
+
+Have Claude clean up the repo too — README with architecture diagram, screenshots, setup
+steps that a judge could actually run. `/init`-quality documentation is a cheap
+differentiator when judges browse repos afterward.
+
+---
+
+## Failure modes to watch for in yourself
+
+| Symptom | Fix |
+|---|---|
+| Session has drifted through four unrelated topics | `/clear` |
+| Correcting the same bug a third time | `/clear`, rewrite the prompt with what you learned |
+| Claude says "done" a lot and things keep breaking | You have no verification loop. Add tests or a script that returns pass/fail. |
+| "Investigate how X works" ate 40 minutes and your context | Scope it, or hand it to a subagent |
+| Still not deployed at hour 20 | Stop feature work. Deploy now. |
+| Building feature #7 while feature #2 is broken | Open the cut list. Cut. |
+
+---
+
+## The one-page version
+
+1. Set up permissions, CLI tools, MCP servers, and deploy access **before** hour 0.
+2. Hour 1: generate and rank ideas against the rubric; pick the one with a single hard part.
+3. Hour 2: let Claude interview you, produce SPEC.md with an explicit cut list, start fresh.
+4. Hour 3: skeleton deployed and live. Not later.
+5. Write a short CLAUDE.md, add one hook that can't be ignored.
+6. Every prompt carries its own verification. Ask for evidence, not assertions.
+7. Parallelize with worktrees, cloud sessions, and subagents — that's your solo edge.
+8. `/clear` constantly. Commit constantly.
+9. Build offline demo mode. Record a fallback video.
+10. Spend the last four hours on the demo script, the README, and two timed rehearsals.

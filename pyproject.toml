@@ -1,0 +1,30 @@
+[project]
+name = "mandate-retry-sequencer"
+version = "0.1.0"
+description = "Bounded recovery workflow for failed UPI Autopay mandate debits. Razorpay AI Buildathon, Track 03."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "lightgbm>=4.5",
+    "shap>=0.46",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.uv]
+package = false

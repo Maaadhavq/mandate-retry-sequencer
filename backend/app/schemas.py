@@ -85,7 +85,10 @@ class BatchRunResponse(BaseModel):
 
 
 class BatchRunRequest(BaseModel):
-    seed: int = 42
+    #: Non-negative: numpy's Generator rejects a negative seed with a bare ValueError,
+    #: which surfaced as a 500 and a stack trace rather than a message. Validation belongs
+    #: at the boundary, so a bad seed is a 422 that says what was wrong.
+    seed: int = Field(default=42, ge=0)
     n: int = Field(default=500, ge=1, le=100_000)
     use_llm: bool = True
 

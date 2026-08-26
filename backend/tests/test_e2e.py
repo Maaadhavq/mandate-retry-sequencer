@@ -242,6 +242,47 @@ def test_response_still_matches_the_frozen_shape() -> None:
     assert shape(live) == shape(stub), "the live response drifted from the frozen §7.2 shape"
 
 
+def test_bad_input_is_a_422_not_a_stack_trace() -> None:
+    """SPEC §8.4: nothing degrades to a traceback on screen.
+
+    A negative seed used to reach numpy and raise a bare ValueError, surfacing as a 500.
+    """
+    client = TestClient(app)
+
+    for body in (
+        {"seed": -1, "n": 10, "use_llm": False},
+        {"seed": 42, "n": 0, "use_llm": False},
+        {"seed": 42, "n": 10_000_000, "use_llm": False},
+    ):
+        response = client.post("/batch/run", json=body)
+        assert response.status_code == 422, f"{body} returned {response.status_code}"
+        assert "detail" in response.json()
+
+
+def test_the_agent_has_no_free_text_injection_surface() -> None:
+    """Every record field reaching the prompt is an enum or an int.
+
+    Nothing attacker-controlled is interpolated into it, which is why the decider needs no
+    input sanitisation of its own. If a free-text field is ever added to MandateRecord,
+    this test should fail and the prompt should be revisited before it ships.
+    """
+    from dataclasses import fields
+
+    from backend.app.decider import _user_prompt
+    from backend.app.models import MandateRecord
+
+    free_text = {
+        f.name
+        for f in fields(MandateRecord)
+        if f.type in ("str", str) and f.name != "row_id"
+    }
+    assert not free_text, f"free-text fields on the record: {free_text}"
+
+    batch = load_batch(DATA / "batch.csv")
+    prompt = _user_prompt(batch[0], 0.44)
+    assert batch[0].row_id not in prompt, "row_id should not reach the prompt at all"
+
+
 def test_pipeline_closes_with_no_llm_in_the_loop(run: dict) -> None:
     """SPEC §10.3: the agent is an upgrade to a working system, not a dependency."""
     assert run["config"]["use_llm"] is False

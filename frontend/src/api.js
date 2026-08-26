@@ -12,6 +12,13 @@ export async function runBatch({ seed = 42, n = 500, useLlm = true } = {}) {
   return res.json();
 }
 
+/** Why the scorer gave this record its score. SHAP, no API key needed (SPEC §7, F9). */
+export async function explain(rowId) {
+  const res = await fetch(`${BASE}/explain/${encodeURIComponent(rowId)}`);
+  if (!res.ok) throw new Error(`Explain failed: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
 /** Paise are integers everywhere (SPEC §11). Format only at the edge, never compute here. */
 export function rupees(paise, { compact = false } = {}) {
   const value = paise / 100;

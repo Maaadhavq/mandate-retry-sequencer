@@ -60,6 +60,23 @@ class FailureRow(BaseModel):
     agent_reasoning: str
 
 
+class FeatureContribution(BaseModel):
+    """One feature's push on the score, in log-odds — not probability. SPEC §7."""
+
+    feature: str
+    label: str
+    value: str
+    contribution: float
+
+
+class ExplainResponse(BaseModel):
+    row_id: str
+    score: float
+    base_value: float
+    summary: str
+    contributions: list[FeatureContribution]
+
+
 class AgentSources(BaseModel):
     live: int
     cache: int

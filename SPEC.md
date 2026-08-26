@@ -349,7 +349,7 @@ ARCHITECTURE.md  README.md  SPEC.md  CLAUDE.md
 | GET | `/health` | `{"status":"ok","version":"..."}` |
 | POST | `/batch/run` | run the campaign, return §7.2 |
 | GET | `/ledger` | paged raw rows, for the audit-trail moment in the video |
-| GET | `/explain/{row_id}` | SHAP contributions *(cut #1)* |
+| GET | `/explain/{row_id}` | SHAP contributions |
 
 `POST /batch/run` body: `{"seed": 42, "n": 500, "use_llm": true}`.
 
@@ -443,8 +443,11 @@ Anything fixed by instinct is a README bug. Run it on **2 Sep** and again before
 
 Ordered. Read this on 30 Aug if the gate in §10 has not passed.
 
-1. **SHAP explainability (F9).** The agent writes its own reasoning to every row it touches, so
-   explainability no longer depends on SHAP.
+1. ~~**SHAP explainability (F9).**~~ **Built after all — the cut reasoning did not survive contact
+   with the artefact.** The premise was that the agent writes its own reasoning to every row it
+   touches. That holds only when the agent runs: with no API key and an empty cache, which is a
+   fresh clone, `agent_reasoning` is a placeholder on all 411 agent-routed rows. SHAP is the
+   explanation layer that works in the ablation, i.e. in the configuration a judge will use.
 2. **Cohort breakdown charts (§2.5 panel 1).** Headline, failures panel, and false-positive cost all
    survive; the slicing goes.
 3. **Promise-to-pay tracker (F8).** `DUNNING_P2P` degrades to a terminal action. If cut, delete

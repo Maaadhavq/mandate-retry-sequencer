@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { runBatch, rupees, percent } from "./api";
+import { explain, runBatch, rupees, percent } from "./api";
 
 /**
  * The dashboard. SPEC §2.5: headline, six stat cards, four panels.
@@ -360,6 +360,10 @@ function FailuresPanel({ failures, atRisk }) {
         </div>
       </div>
 
+      <p className="failures-hint">
+        Click any row for the SHAP explanation of its score. No API key needed.
+      </p>
+
       <div className="table-scroll">
         <table>
           <thead>
@@ -373,33 +377,103 @@ function FailuresPanel({ failures, atRisk }) {
           </thead>
           <tbody>
             {shown.map((f) => (
-              <tr
-                key={f.row_id}
-                className={f.rules_fired.includes("vetoed_agent_proposal") ? "vetoed" : ""}
-              >
-                <td>
-                  <code>{f.row_id}</code>
-                </td>
-                <td className="num">{rupees(f.amount_paise)}</td>
-                <td className="num">{f.score.toFixed(3)}</td>
-                <td>{f.stopped_by}</td>
-                <td className="rules">
-                  {f.rules_fired.map((r) => (
-                    <span
-                      key={r}
-                      className={`tag${r.startsWith("hard_") ? " hard" : ""}${
-                        r === "vetoed_agent_proposal" ? " veto" : ""
-                      }`}
-                    >
-                      {r}
-                    </span>
-                  ))}
-                </td>
-              </tr>
+              <FailureRow key={f.row_id} failure={f} />
             ))}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+/**
+ * One failure, expanding to its SHAP explanation on click.
+ *
+ * This is the explanation layer that works with no API key — the agent's own reasoning is
+ * only populated once it has actually run, so on a fresh clone this is all there is.
+ */
+function FailureRow({ failure: f }) {
+  const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [failed, setFailed] = useState(null);
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && !detail && !failed) {
+      try {
+        setDetail(await explain(f.row_id));
+      } catch (e) {
+        setFailed(e.message);
+      }
+    }
+  }
+
+  const vetoed = f.rules_fired.includes("vetoed_agent_proposal");
+
+  return (
+    <>
+      <tr className={`clickable${vetoed ? " vetoed" : ""}`} onClick={toggle}>
+        <td>
+          <span className={`caret${open ? " open" : ""}`}>▸</span>
+          <code>{f.row_id}</code>
+        </td>
+        <td className="num">{rupees(f.amount_paise)}</td>
+        <td className="num">{f.score.toFixed(3)}</td>
+        <td>{f.stopped_by}</td>
+        <td className="rules">
+          {f.rules_fired.map((r) => (
+            <span
+              key={r}
+              className={`tag${r.startsWith("hard_") ? " hard" : ""}${
+                r === "vetoed_agent_proposal" ? " veto" : ""
+              }`}
+            >
+              {r}
+            </span>
+          ))}
+        </td>
+      </tr>
+      {open && (
+        <tr className="detail-row">
+          <td colSpan={5}>
+            {failed && <span className="detail-error">Could not explain: {failed}</span>}
+            {!failed && !detail && <span className="detail-loading">Explaining…</span>}
+            {detail && (
+              <div className="explain">
+                <p className="explain-summary">{detail.summary}</p>
+                <div className="explain-bars">
+                  {detail.contributions.map((c) => (
+                    <div className="explain-row" key={c.feature}>
+                      <span className="explain-label">{c.label}</span>
+                      <span className="explain-value">{c.value}</span>
+                      <span className="explain-track">
+                        <span
+                          className={`explain-fill ${c.contribution >= 0 ? "up" : "down"}`}
+                          style={{
+                            width: `${Math.min(100, Math.abs(c.contribution) * 45)}%`,
+                          }}
+                        />
+                      </span>
+                      <span
+                        className={`explain-num ${c.contribution >= 0 ? "up" : "down"}`}
+                      >
+                        {c.contribution >= 0 ? "+" : ""}
+                        {c.contribution.toFixed(3)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="explain-note">
+                  Contributions are in log-odds from a base of{" "}
+                  {detail.base_value.toFixed(3)}, not probability. A rule can still refuse
+                  this record regardless of what the model thinks.
+                </p>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

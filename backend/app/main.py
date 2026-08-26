@@ -8,6 +8,7 @@ function that gets replaced at Gate B — the response model does not change.
 from __future__ import annotations
 
 import uuid
+from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,7 @@ from backend.app.schemas import (
     AttemptsBucket,
     BatchRunRequest,
     BatchRunResponse,
+    ExplainResponse,
     CohortSlice,
     Cohorts,
     FailureRow,
@@ -96,6 +98,44 @@ def _stub_response(req: BatchRunRequest) -> BatchRunResponse:
             sources=AgentSources(live=0, cache=0, fallback=0, deterministic=0),
         ),
     )
+
+
+@lru_cache(maxsize=1)
+def _explainer():
+    """Built once. Constructing a TreeExplainer walks the whole forest."""
+    from backend.app.explain import Explainer
+
+    return Explainer()
+
+
+@lru_cache(maxsize=1)
+def _batch_by_id() -> dict:
+    from backend.app.runner import load_batch
+
+    return {r.row_id: r for r in load_batch()}
+
+
+@app.get("/explain/{row_id}", response_model=ExplainResponse)
+def explain(row_id: str) -> ExplainResponse:
+    """Why the scorer gave this record the score it did. SPEC §7, F9.
+
+    Exists because the agent's own reasoning is only populated when the agent actually runs.
+    On a clone with no API key — the configuration a judge will use — this is the whole
+    explanation layer, and it needs no network.
+    """
+    try:
+        records = _batch_by_id()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    record = records.get(row_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{row_id} is not in the current batch ({len(records)} records).",
+        )
+
+    return ExplainResponse.model_validate(_explainer().explain(record).to_dict())
 
 
 @app.post("/batch/run", response_model=BatchRunResponse)

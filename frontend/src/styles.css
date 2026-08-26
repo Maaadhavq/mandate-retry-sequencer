@@ -162,3 +162,33 @@ td.rules { display: flex; gap: .3rem; flex-wrap: wrap; }
 }
 .tag.hard { border-color: #4a3a1a; color: var(--warn); }
 .tag.veto { border-color: #5c3527; color: var(--crit); }
+
+/* ---- SHAP explanation, expanded from a failure row ---- */
+.failures-hint { margin: 0 0 .7rem; color: var(--muted); font-size: .8rem; }
+tbody tr.clickable { cursor: pointer; }
+.caret {
+  display: inline-block; width: 1em; color: var(--muted);
+  transition: transform .12s; font-size: .7rem;
+}
+.caret.open { transform: rotate(90deg); }
+.detail-row td { background: #10181c; padding: 0; }
+.detail-loading, .detail-error { display: block; padding: .9rem 1.2rem; color: var(--muted); font-size: .84rem; }
+.detail-error { color: var(--crit); }
+
+.explain { padding: 1rem 1.2rem 1.1rem; }
+.explain-summary { margin: 0 0 .9rem; font-size: .89rem; color: var(--ink); max-width: 78ch; }
+.explain-bars { display: flex; flex-direction: column; gap: .28rem; }
+.explain-row {
+  display: grid; align-items: center; gap: .7rem;
+  grid-template-columns: 12rem 8rem 1fr 4rem;
+}
+.explain-label { color: var(--muted); font-size: .78rem; }
+.explain-value { font-size: .78rem; font-variant-numeric: tabular-nums; }
+.explain-track { position: relative; height: 7px; background: #1b2429; border-radius: 99px; }
+.explain-fill { position: absolute; top: 0; height: 100%; border-radius: 99px; }
+.explain-fill.up { left: 50%; background: var(--accent); }
+.explain-fill.down { right: 50%; background: var(--crit); }
+.explain-num { font-size: .76rem; text-align: right; font-variant-numeric: tabular-nums; }
+.explain-num.up { color: var(--accent); }
+.explain-num.down { color: var(--crit); }
+.explain-note { margin: .9rem 0 0; font-size: .76rem; color: var(--muted); max-width: 72ch; }

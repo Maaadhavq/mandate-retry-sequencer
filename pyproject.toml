@@ -25,6 +25,12 @@ dev = [
 testpaths = ["backend/tests"]
 pythonpath = ["."]
 addopts = "-q"
+filterwarnings = [
+    # shap warns that LightGBM binary output "has changed to a list of ndarray".
+    # explain.py handles both shapes explicitly; the warning is about shap's own history,
+    # not about this call site, and it fires once per explanation.
+    "ignore:LightGBM binary classifier with TreeExplainer:UserWarning",
+]
 
 [tool.uv]
 package = false

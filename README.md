@@ -75,10 +75,14 @@ irreproducible and lock the repo behind a key.
 It does not here, because decisions resolve in three layers (SPEC §4.3):
 
 1. **A committed response cache.** Every agent decision is stored in `cache/llm/`, keyed by a hash
-   of the record. A clone with no key replays them and reproduces the numbers exactly.
+   of the record, and committed. A clone with no key replays them and reproduces the numbers
+   exactly. *It is empty in this checkout* — entries are only produced by a run with a key set, and
+   the pipeline is fully functional without them. See `cache/llm/README.md`.
 2. **A deterministic fallback policy.** Pure, tested, no network. Covers anything uncached.
 3. **An ablation.** `--no-llm` runs the whole pipeline without the agent, so the rupee difference
-   between the two runs is the agent's *measured* contribution rather than a claim about it.
+   between the two runs is the agent's *measured* contribution rather than a claim about it. With
+   the cache empty and no key, that delta is **₹0** — both arms run the same deterministic policy,
+   which is the honest reading, not a claim that the agent adds nothing.
 
 ---
 

@@ -219,8 +219,10 @@ figure be reproducible by running a script.
 1. **Response cache.** Keyed on `sha256(model + policy_version + canonical_record_json)`. Stored as
    `cache/llm/<key>.json`. **Committed to the repo.** A clone with no API key replays every decision
    and reproduces the video's totals byte for byte.
-2. **Deterministic fallback policy** — `decide_fallback(record, score)` in `backend/app/policy.py`.
-   Used when there is no cache entry and no API key. Pure, tested, no network.
+2. **Deterministic fallback policy** — `decide_fallback(record, score)` in
+   `backend/app/guardrails.py`, beside the band logic it mirrors. (`policy.py` stays
+   import-free constants, so putting it there would cycle with `models.py`.) Used when there is
+   no cache entry and no API key. Pure, tested, no network.
 3. **Ablation.** Because layer 2 exists, `--no-llm` runs the entire pipeline without the agent. The
    ₹ delta between the two runs is the measured contribution of the agent. Report this number in the
    video — it is a better answer than any claim about the model.

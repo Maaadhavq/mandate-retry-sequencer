@@ -129,7 +129,3 @@ class ResponseCache:
             json.dump(payload, fh, indent=2, sort_keys=True)
             fh.write("\n")
         self.writes += 1
-
-    @property
-    def stats(self) -> dict[str, int]:
-        return {"hits": self.hits, "misses": self.misses, "writes": self.writes}

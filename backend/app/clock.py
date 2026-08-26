@@ -80,10 +80,6 @@ class SimClock:
     def terminal_states(self) -> dict[str, TerminalState]:
         return dict(self._terminal)
 
-    @property
-    def pending(self) -> set[str]:
-        return {w.row_id for w in self._heap if w.row_id not in self._terminal}
-
     # -- iteration ----------------------------------------------------------------------
 
     def run(self) -> Iterator[tuple[datetime, list[_Wake]]]:

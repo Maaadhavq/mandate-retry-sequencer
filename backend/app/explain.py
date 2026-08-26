@@ -54,10 +54,6 @@ class Contribution:
     value: str
     contribution: float
 
-    @property
-    def direction(self) -> str:
-        return "raises" if self.contribution > 0 else "lowers"
-
 
 @dataclass(frozen=True, slots=True)
 class Explanation:

@@ -108,7 +108,6 @@ class BatchRunner:
             )
         )
         self._state: dict[str, MandateRecord] = {r.row_id: r for r in records}
-        self._promised: dict[str, int] = {}
         #: Who authorised the retry currently booked for each row — so that if a hard
         #: rule vetoes it when the window arrives, the ledger says whose proposal died.
         self._booked_by: dict[str, AgentSource] = {}
@@ -236,8 +235,10 @@ class BatchRunner:
             return
 
         if action is Action.DUNNING_P2P:
-            amount, due_days = self.executor.capture_promise(record)
-            self._promised[record.row_id] = amount
+            # The promised amount is the full ticket (SPEC §5.4 — no partial-payment
+            # model), so it is not carried separately; `resolve_promise` reads it off the
+            # record. Storing a second copy would be a second source of truth for money.
+            _, due_days = self.executor.capture_promise(record)
             self._write(record, decision, score, now, reason, Outcome.PROMISED, 0, source, reasoning)
             clock.schedule_in(record.row_id, due_days * 24.0, WakeReason.PROMISE_DUE)
             return

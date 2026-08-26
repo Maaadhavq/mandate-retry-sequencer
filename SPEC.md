@@ -1,7 +1,9 @@
 # SPEC — Mandate Retry Sequencer
 
 Razorpay AI Buildathon, Track 03 (AI Revenue Recovery). Solo build.
-Companion to `CONTEXT_1.md`: that document is *why this project*, this one is *what "done" means*.
+Companion to `CONTEXT_1.md` — the buildathon brief, kept locally and not published in this
+repo. That document is *why this project*, this one is *what "done" means*. Citations to its
+§7 questions below are traceability notes, not links.
 
 **Repo:** `mandate-retry-sequencer` (public)
 **Written:** 26 Aug 2026 · **Submit:** 4 Sep 2026 · **Deadline:** 5 Sep 2026
@@ -294,7 +296,7 @@ frontend/  src/ (React + Vite + Recharts)
 data/      batch_train.csv batch_holdout.csv ground_truth.json ledger.jsonl
 models/    scorer.txt metrics.json
 cache/llm/ <sha256>.json   # committed
-ARCHITECTURE.md  README.md  SPEC.md  CONTEXT_1.md  CLAUDE.md
+ARCHITECTURE.md  README.md  SPEC.md  CLAUDE.md
 ```
 
 ---

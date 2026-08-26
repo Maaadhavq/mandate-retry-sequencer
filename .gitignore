@@ -27,3 +27,7 @@ data/ground_truth.json
 # OS
 Thumbs.db
 .DS_Store
+
+# Personal working docs — kept locally, never published
+CONTEXT_1.md
+New Text Document.txt

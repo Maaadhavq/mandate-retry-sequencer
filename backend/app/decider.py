@@ -32,6 +32,7 @@ from datetime import datetime
 from typing import Final
 
 from backend.app import guardrails
+from backend.app.env import load_env
 from backend.app.llm_cache import AgentDecision, ResponseCache, cache_key, canonical_record
 from backend.app.models import MandateRecord
 from backend.app.policy import (
@@ -206,6 +207,9 @@ class Decider:
     def client(self):
         """Constructed lazily so importing this module never needs a key."""
         if self._client is None and not self._client_failed:
+            # A `.env` is the documented way to supply the key (`.env.example`). Loaded
+            # here rather than at import so the module still needs nothing to be importable.
+            load_env()
             if not os.environ.get("ANTHROPIC_API_KEY"):
                 self._client_failed = True
                 return None

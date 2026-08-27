@@ -12,33 +12,47 @@ from typing import Final
 # --------------------------------------------------------------------------------------
 # Provenance — read this before citing any of it as a regulatory fact.
 #
-# These constants describe NPCI UPI Autopay / e-mandate behaviour. They were NOT read out
-# of the primary NPCI circular. Their status differs, and the difference matters:
+# These constants are graded in three tiers, because "NPCI says so" and "everyone does it"
+# are different claims and conflating them is how a payments review goes badly.
 #
-#   CORROBORATED by independent public reporting on NPCI's rules effective 1 Aug 2025:
-#     - MAX_ATTEMPTS = 4 (one original execution plus three retries)
+#   TIER 1 — REGULATION. Attributed to NPCI's "Guidelines on usage of Unified Payments
+#   Interface (UPI) and Application Programming Interface (API)", notified 21 May 2025,
+#   effective 1 August 2025. Confirmed by multiple independent reports of that document.
+#   The primary PDF was NOT read directly (npci.org.in blocks automated fetches), so this
+#   is second-hand from consistent reporting, not from the circular itself.
+#     - MAX_ATTEMPTS = 4  — one original execution plus three retries
+#     - PEAK_WINDOWS_IST  — autopay restricted to non-peak hours, hours quoted verbatim
+#
+#   TIER 2 — INDUSTRY CONVENTION, not regulation. Widely used and widely described as
+#   good practice; NOT mandated by NPCI. An earlier revision of this file wrongly listed
+#   it as corroborated regulation, which is precisely the over-claim the tiering exists to
+#   prevent.
 #     - RETRY_WINDOWS_HOURS = (24, 72, 168)
-#     - PEAK_WINDOWS_IST — autopay restricted to non-peak hours
 #
-#   ASSUMPTION, not corroborated anywhere:
+#   TIER 3 — ASSUMPTION. Plausible, internally consistent, unverified.
 #     - COOLING_PERIOD_HOURS = 24
-#     - HORIZON_DAYS = 14 (a campaign choice, not a regulation)
+#     - HORIZON_DAYS = 14  — a campaign design choice, not a rule at all
 #
-# ARCHITECTURE.md must repeat this split. Claiming regulatory precision that has not been
-# verified against the source document is the fastest way to lose a payments panel — but
-# so is flagging a verifiable rule as a guess.
+# ARCHITECTURE.md must repeat this split. Claiming regulatory precision you have not
+# verified is the fastest way to lose a payments panel — and so is flagging a verifiable
+# rule as a guess. Both directions are errors.
 # --------------------------------------------------------------------------------------
 
-#: Total debit attempts permitted per mandate cycle: 1 original + 3 retries.
+#: TIER 1. Total debit attempts permitted per mandate cycle: 1 original + 3 retries.
+#: NPCI guidelines notified 21 May 2025, effective 1 Aug 2025.
 MAX_ATTEMPTS: Final[int] = 4
 
-#: Minimum hours between two debit attempts on the same mandate.
+#: TIER 3, ASSUMPTION. Minimum hours between two debit attempts on the same mandate.
+#: Not corroborated by any source located; treat as a design choice.
 COOLING_PERIOD_HOURS: Final[float] = 24.0
 
-#: The retry ladder. A scheduled retry fires at one of these offsets, never between them.
+#: TIER 2, CONVENTION not regulation. The retry ladder: a scheduled retry fires at one of
+#: these offsets, never between them. Widely described as good practice — spacing retries
+#: so the customer has time to top up — but NPCI does not mandate these intervals.
 RETRY_WINDOWS_HOURS: Final[tuple[int, ...]] = (24, 72, 168)
 
-#: Campaign horizon. After this, an unresolved record is written off as EXPIRED.
+#: TIER 3. Campaign horizon, a design choice rather than a rule. After this an unresolved
+#: record is written off as EXPIRED.
 HORIZON_DAYS: Final[int] = 14
 
 # --------------------------------------------------------------------------------------
@@ -52,8 +66,10 @@ HORIZON_DAYS: Final[int] = 14
 # money lands, this says when we are allowed to ask for it, and they routinely disagree.
 # --------------------------------------------------------------------------------------
 
-#: Peak windows, IST, as [start_hour, end_hour) in decimal hours. Autopay is BLOCKED here.
-#: 21.5 is 21:30.
+#: TIER 1. Peak windows, IST, as [start_hour, end_hour) in decimal hours. Autopay is
+#: BLOCKED here. NPCI defines peak as "the period during the day when UPI financial
+#: transactions reach the highest transactions per second, observed from 10:00 hrs to
+#: 13:00 hrs and from 17:00 hrs to 21:30 hrs". 21.5 is 21:30.
 PEAK_WINDOWS_IST: Final[tuple[tuple[float, float], ...]] = ((10.0, 13.0), (17.0, 21.5))
 
 #: Everything else is permitted: before 10:00, 13:00-17:00, and after 21:30.

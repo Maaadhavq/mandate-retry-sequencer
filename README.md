@@ -2,16 +2,42 @@
 
 **Razorpay AI Buildathon — Track 03, AI Revenue Recovery**
 
-A bounded recovery workflow for failed UPI Autopay mandate debits. It scores each failure for
-recoverability, decides an intervention, refuses anything the compliance rules forbid, executes
-against a simulated payment rail over a 14-day campaign, and reports money recovered against money
-at risk — with every rupee traceable to a row in an append-only ledger.
+**More than 20 million UPI Autopay mandates are revoked every month in India because the customer's
+balance was short.** Retrying them is not the hard part — every gateway does that. The hard part is
+proving *which* retries were permitted, which were refused, what being wrong cost, and what the
+system chose not to do.
 
-> **Status: gates A–D passed; E needs only the video.** The pipeline is live end to end. On the
-> committed seed it recovers **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records,
-> with 187 stopped by a hard rule, 11 agent-proposed retries vetoed by a compliance rule, and every
-> rupee traceable to a ledger row. **170 tests**, and a fresh clone with no API key reproduces every
-> figure. See [SPEC.md](SPEC.md) §10.
+This is the governance layer for that: a recovery pipeline where a model proposes and **compliance
+rules dispose**. It scores each failed debit for recoverability, decides an intervention, refuses
+anything the rules forbid — including NPCI's peak-hour restriction on autopay execution — runs a
+14-day campaign against a simulated rail, and reports money recovered against money at risk with
+every rupee traceable to a row in an append-only ledger.
+
+> **Status: gates A–D passed; E needs only the video.** On the committed seed it recovers
+> **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records: 187 stopped by a hard rule,
+> 11 agent-proposed retries vetoed by one, **zero of 266 debits executed inside an NPCI peak
+> window**, and ₹82,07,516 it failed to recover listed in full rather than hidden. **195 tests**,
+> and a fresh clone with no API key reproduces every figure. See [SPEC.md](SPEC.md) §10.
+
+### What it refuses to do
+
+Five hard rules run **before** the score is read, and no score and no agent proposal may override
+them. Rule 5 is the one worth pausing on:
+
+| | IST |
+|---|---|
+| Autopay execution **permitted** | before 10:00 · 13:00–17:00 · after 21:30 |
+| **Blocked** — NPCI peak hours | 10:00–13:00 · 17:00–21:30 |
+
+Effective 1 August 2025, NPCI restricts non-customer-initiated APIs — which is what a mandate debit
+is — to non-peak hours. That closes about 40% of the day. A retry falling inside a window is
+deferred to the window edge, never executed and never dropped, and a test asserts the guarantee
+across every debit in the run.
+
+It is also the only constraint here checkable against a dated public source. Every other constant
+is graded in [`policy.py`](backend/app/policy.py) as regulation, industry convention, or assumption
+— and every external claim this repo makes is cited, tiered, and challenged in
+[SOURCES.md](SOURCES.md), including what would change my mind.
 
 ---
 

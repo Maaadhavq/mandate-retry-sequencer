@@ -238,6 +238,7 @@ four-attempt cap (1 original + 3 retries) and the 24/72/168h ladder both appear 
 reporting on the August 2025 rules. The 24h cooling period remains an assumption. Rule 5's windows
 are cited to that same dated change.
 
+Full citations, tiering, and a list of what would change my mind are in `SOURCES.md`.
 Everything lives in one place, `backend/app/policy.py`, as named constants with source comments.
 `ARCHITECTURE.md` must state which are corroborated and which are not. Claiming regulatory
 precision you have not verified is the fastest way to lose a payments panel.

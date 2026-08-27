@@ -118,10 +118,17 @@ It does not here, because decisions resolve in three layers (SPEC §4.3):
    exactly. *It is empty in this checkout* — entries are only produced by a run with a key set, and
    the pipeline is fully functional without them. See `cache/llm/README.md`.
 2. **A deterministic fallback policy.** Pure, tested, no network. Covers anything uncached.
-3. **An ablation.** `--no-llm` runs the whole pipeline without the agent, so the rupee difference
-   between the two runs is the agent's *measured* contribution rather than a claim about it. With
-   the cache empty and no key, that delta is **₹0** — both arms run the same deterministic policy,
-   which is the honest reading, not a claim that the agent adds nothing.
+3. **An ablation.** One command runs the pipeline with and without the agent and prints the rupee
+   difference — the agent's *measured* contribution rather than a claim about it:
+
+   ```bash
+   .venv/Scripts/python -m backend.scripts.ablate
+   ```
+
+   With the cache empty and no key that delta is **₹0**, because both arms fall through to the same
+   deterministic policy. The script says so explicitly rather than printing a zero that could be
+   mistaken for a result. With a key set, `--populate` fills the cache first and the comparison
+   becomes real.
 
 ---
 

@@ -134,8 +134,8 @@ It does not here, because decisions resolve in three layers (SPEC §4.3):
   [ SCORER ]      LightGBM · P(recover | features)
         │
         ▼
-  [ GUARDRAILS ]  hard rules, evaluated first and always
-        │         revoked mandate · attempt cap · cooling period · horizon
+  [ GUARDRAILS ]  five hard rules, evaluated first and always
+        │         revoked · attempt cap · cooling · horizon · NPCI peak window
         ▼
   [ DECIDER ]     agent, called only for the ambiguous band (0.15–0.65)
         │         proposes an action; the guardrails re-validate before execution
@@ -151,7 +151,7 @@ It does not here, because decisions resolve in three layers (SPEC §4.3):
 ```
 
 A hard rule always beats the score, and always beats the agent. An agent proposal is a request, not
-an authority — it is re-checked against rules 1–4 before anything executes.
+an authority — it is re-checked against rules 1–5 before anything executes.
 
 Full design in [ARCHITECTURE.md](ARCHITECTURE.md). The contract this is built against is
 [SPEC.md](SPEC.md), which is also where every design decision and every reversal is recorded.
@@ -162,9 +162,12 @@ Full design in [ARCHITECTURE.md](ARCHITECTURE.md). The contract this is built ag
 
 - **All data is synthetic**, generated in-repo by a seeded script. No real merchant data is used or
   needed.
-- **The NPCI retry constraints are assumptions.** Attempt caps, cooling periods, and the retry
-  ladder come from public industry summaries of UPI Autopay behaviour, not from the primary NPCI
-  circular. They live in one file, `backend/app/policy.py`, and are labelled as such.
+- **The regulatory constants are graded, not uniformly trusted.** The attempt cap and the peak-hour
+  windows are attributed to NPCI guidelines effective 1 Aug 2025 by multiple independent reports;
+  the 24/72/168h retry ladder is industry convention rather than regulation; the 24h cooling period
+  is an unsourced assumption. **Nothing was read from the primary circular** — `npci.org.in` blocks
+  automated fetches — and [SOURCES.md](SOURCES.md) says so, tiers every claim, and lists what would
+  change my mind.
 - **The scorer is trained on data this repo generates**, so its AUC measures the pipeline, not a
   real-world result. The generator is deliberately built with an interaction the model must
   discover, genuine label noise, and one cohort it systematically gets wrong — see SPEC §2.2.

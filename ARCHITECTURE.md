@@ -37,18 +37,20 @@ flowchart TD
     C -->|"rule 2 attempt cap"| S
     C -->|"rule 3 cooling"| W["BLOCKED_COOLING<br/>re-wake later"]
     C -->|"rule 4 horizon"| S
+    C -->|"rule 5 NPCI peak window"| P["BLOCKED_PEAK_WINDOW<br/>defer to window edge"]
 
     C -->|"no rule fired"| D{"Score band"}
     D -->|"≥ 0.65"| E["RETRY_NOW"]
     D -->|"< 0.15"| S
     D -->|"0.15 – 0.65<br/>ambiguous"| F["Decider agent<br/>claude-haiku-4-5"]
 
-    F -->|"proposes an action"| G{"Re-validate<br/>against rules 1–4"}
+    F -->|"proposes an action"| G{"Re-validate<br/>against rules 1–5"}
     G -->|"rule fires"| V["STOP<br/>vetoed_proposal recorded"]
     G -->|"clean"| E
 
     E --> H["Executor<br/>simulated rail"]
     W --> C
+    P --> C
     H --> I["Ledger<br/>append-only JSONL"]
     S --> I
     V --> I
@@ -56,12 +58,14 @@ flowchart TD
 ```
 
 A 14-day simulated clock steps the whole thing in one-hour ticks. Records wake when they are due —
-initially, when a cooling period expires, when a booked retry comes round, or when a promise falls
-due — and every wake produces exactly one ledger row.
+initially, when a cooling period expires, when an NPCI peak window closes, when a booked retry
+comes round, or when a promise falls due — and every wake produces exactly one ledger row.
 
-The clock is not decoration. Without it, "attempts per recovery" is not a distribution and the
-cooling-period rule is an assertion rather than demonstrated behaviour: a record blocked at hour 3
-has to actually come back at hour 27 and succeed or fail on its own merits.
+The clock is not decoration. Without it, "attempts per recovery" is not a distribution and rules 3
+and 5 are assertions rather than demonstrated behaviour: a record blocked at hour 3 has to actually
+come back at hour 27 and succeed or fail on its own merits, and one that comes due at 11:00 has to
+actually wait until 13:00. On the current batch that is 38 peak deferrals, and a test asserts that
+none of the 266 debits landed inside a restricted window.
 
 ---
 
@@ -73,7 +77,7 @@ one model is the mistake this design exists to avoid.
 
 Three properties follow from keeping them apart:
 
-**A hard rule cannot be outvoted.** `guardrails.evaluate()` checks rules 1–4 *before* it looks at
+**A hard rule cannot be outvoted.** `guardrails.evaluate()` checks rules 1–5 *before* it looks at
 the score at all. A revoked mandate scoring 0.99 returns `STOP`, and there is no code path that
 reaches the score bands afterwards. These are tests, not claims —
 `test_rule1_revoked_mandate_stops_even_at_score_099`,
@@ -100,23 +104,27 @@ rows is seeded; they fall out of the clock.
 
 ## 4. The NPCI constraints — read this before citing any of it
 
-Four constants drive the hard rules:
+Five constants drive the hard rules, and they are **not equally trustworthy**. Grading them as if
+they were would be the actual failure in a payments review:
 
-| Constant | Value | Where it is |
-|---|---|---|
-| `MAX_ATTEMPTS` | 4 (1 original + 3 retries) | `backend/app/policy.py` |
-| `COOLING_PERIOD_HOURS` | 24 | same |
-| `RETRY_WINDOWS_HOURS` | 24 / 72 / 168 | same |
-| `HORIZON_DAYS` | 14 | same |
+| Constant | Value | Tier | Basis |
+|---|---|---|---|
+| `MAX_ATTEMPTS` | 4 (1 original + 3 retries) | **1 — regulation** | NPCI guidelines notified 21 May 2025, effective 1 Aug 2025 |
+| `PEAK_WINDOWS_IST` | blocked 10:00–13:00, 17:00–21:30 | **1 — regulation** | same document; sources quote the hours verbatim |
+| `RETRY_WINDOWS_HOURS` | 24 / 72 / 168 | **2 — convention** | widely used best practice, **not** an NPCI mandate |
+| `COOLING_PERIOD_HOURS` | 24 | **3 — assumption** | no source located |
+| `HORIZON_DAYS` | 14 | **3 — design choice** | not a rule at all |
 
-**These are assumptions.** They are derived from public industry summaries of NPCI UPI Autopay and
-e-mandate behaviour. They were **not** read out of the primary NPCI circular. They are plausible and
-internally consistent, and they are not verified against the source document.
+**Nothing here was read from the primary circular.** `npci.org.in` blocks automated fetches, so even
+the tier-1 claims are second-hand from multiple independent reports that agree on specifics.
 
-That disclosure is repeated verbatim in `policy.py` above the constants themselves, because
-claiming regulatory precision that has not been checked is a worse failure in a payments review than
-having the numbers slightly wrong. Anyone productionising this should replace them against the
-actual circular; they live in exactly one file and nothing else in the codebase restates them.
+An earlier revision listed the retry ladder as corroborated regulation. It is not — one source says
+explicitly that those intervals are recommended practice rather than mandated. The over-claim is
+corrected and the correction is left in the git history, because that is the failure mode this
+tiering exists to prevent and hiding it would defeat the point.
+
+Full citations, exact quotes, and a section on what would change my mind: [SOURCES.md](SOURCES.md).
+Everything lives in exactly one file, `policy.py`, and nothing else in the codebase restates it.
 
 ---
 
@@ -300,7 +308,7 @@ control, none of which exist here because no real data does.
 backend/app/
   policy.py       every policy constant, and nothing else. Stdlib imports only.
   models.py       frozen domain types — a record is evidence, so it cannot mutate
-  guardrails.py   rules 1–4, the score bands, decide_fallback, validate_proposal
+  guardrails.py   rules 1–5, the score bands, decide_fallback, validate_proposal
   scorer.py       feature encoding + inference, shared by training and serving
   decider.py      the agent: cache → live call → fallback
   llm_cache.py    content-addressed response cache

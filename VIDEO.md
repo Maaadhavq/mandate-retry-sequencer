@@ -1,8 +1,9 @@
 # Video script — 5 minutes
 
 Track 03's bar: *"Don't just identify the problem. Show measured money recovered across a batch,
-with compliant escalation, stopping rules, and an audit trail."* The script below hits those four
-in that order, and every number in it is real output from seed 42.
+with compliant escalation, stopping rules, and an audit trail."* Three of those four clauses are
+governance, not prediction — the script below is built around that. Every number in it is real
+output from seed 42, and every external claim is cited in `SOURCES.md`.
 
 **Before recording:**
 
@@ -20,16 +21,21 @@ Run batch until the script says to — the empty state is part of the opening.
 
 ## 0:00–0:30 · The problem
 
-> A UPI Autopay mandate debit fails. Something has to happen next, and today at most merchants that
-> something is a fixed retry a day later, applied to everything.
+> More than twenty million UPI Autopay mandates are revoked every month in India because the
+> customer's balance was short. That's not a modelling problem — that's revenue leaving through a
+> door nobody is watching.
 >
-> The interesting part isn't predicting which ones come back. It's that some of these must never be
-> retried at all, no matter how recoverable a model thinks they are. A revoked mandate has no
-> authority behind it. A record on its fourth attempt has used its cycle. Those are compliance
-> facts, not probabilities.
+> Retrying those isn't the hard part. Every gateway retries. The hard part is proving which retries
+> were permitted, which were refused, what it cost to be wrong, and what the system chose not to do.
 >
-> So this is built as a deterministic spine with a narrow model-driven segment — not a model with
-> rules bolted on afterwards. Here's what it does to five hundred failed debits.
+> Because some of these must never be retried at all, however recoverable a model thinks they are. A
+> revoked mandate has no authority behind it. A record on its fourth attempt has used its cycle.
+> And since the first of August last year, NPCI won't let you execute an autopay debit during peak
+> hours at all — that's about forty percent of the day closed.
+>
+> Those are compliance facts, not probabilities. So this is a deterministic spine with a narrow
+> model-driven segment: the model proposes, the rules dispose. Here's what it does to five hundred
+> failed debits.
 
 *(On screen: the dashboard in its empty state.)*
 
@@ -87,12 +93,33 @@ show more than one.)*
 
 ---
 
-## 2:15–3:00 · Stopping rules and the audit trail
+## 2:15–3:20 · Stopping rules and the audit trail
 
 Point at the cohort chart.
 
 > Revoked mandates: sixty-six records, **zero percent recovered**. Not "nearly zero" — zero. That
 > bar is the compliance layer, visible as a number.
+
+Now the one I'd most want a payments engineer to notice. Switch to the terminal and run the
+compliance test on its own:
+
+```bash
+.venv/Scripts/python -m pytest backend/tests/test_e2e.py -k "peak or deferred" -v
+```
+
+> NPCI restricts autopay execution to non-peak hours — blocked ten to one, and five to nine-thirty.
+> About forty percent of the day. Most retry logic I've seen treats a retry window as pure
+> arithmetic: last attempt plus twenty-four hours. That lands inside a restricted window a lot of
+> the time.
+>
+> So this scheduler is window-aware. Thirty-eight retries came due inside a peak window on this run.
+> None of them executed — each was deferred to the window edge, and none was dropped. That test
+> asserts it across every one of the two hundred and sixty-six debits in the batch: zero landed in a
+> restricted window.
+>
+> It's the only constraint in the system I can point at a dated public document for. Everything else
+> is graded in `SOURCES.md` as regulation, convention, or honest assumption — because "NPCI says so"
+> and "everyone does it" are different claims, and a payments team will know the difference.
 
 Switch to the terminal:
 
@@ -109,7 +136,7 @@ Switch to the terminal:
 
 ---
 
-## 3:00–3:50 · Where it's wrong, and how I know
+## 3:20–4:00 · Where it's wrong, and how I know
 
 Scroll to the cohort chart, point at `edtech`.
 
@@ -130,16 +157,18 @@ Scroll to the cohort chart, point at `edtech`.
 
 ---
 
-## 3:50–4:30 · Honest limitations
+## 4:00–4:35 · Honest limitations
 
 > Four things I'd want said out loud.
 >
 > **The data is synthetic.** All of it, seeded and generated in-repo. The AUC — 0.784, against a
 > measured ceiling of 0.824 — grades the pipeline, not a real-world outcome.
 >
-> **The NPCI constants are assumptions.** Attempt caps, cooling periods, the retry ladder: those
-> come from public industry summaries, not the primary circular. They're labelled as assumptions in
-> the one file they live in, because claiming regulatory precision I haven't verified is worse than
+> **I never read the primary circular.** NPCI blocks automated fetches, so even the attempt cap and
+> the peak windows are second-hand from reporting that agrees on specifics. The retry ladder is
+> industry convention, not regulation — I had that wrong at first and corrected it. The cooling
+> period is an unsourced guess. All of that is graded in `SOURCES.md`, including a section on what
+> would change my mind, because claiming regulatory precision I haven't verified is worse than
 > being slightly wrong.
 >
 > **The false-positive cost is understated.** ₹242 is processing spend. The real cost of a fourth
@@ -151,7 +180,7 @@ Scroll to the cohort chart, point at `edtech`.
 
 ---
 
-## 4:30–5:00 · Close
+## 4:35–5:00 · Close
 
 > The thing I'd defend is the layering. The scorer answers how likely recovery is. The rules answer
 > what we're allowed to do about it. Those stay separate, the rules run first, and every action —

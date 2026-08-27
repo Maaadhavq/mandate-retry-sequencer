@@ -225,6 +225,17 @@ class BatchRunner:
             clock.schedule_in(record.row_id, max(wait, 1.0), WakeReason.COOLING_EXPIRED)
             return
 
+        if action is Action.BLOCKED_PEAK_WINDOW:
+            # Deferred to the window edge, never dropped. The wake carries the reason it
+            # is coming back, so the ledger shows a peak deferral as its own event rather
+            # than as an unexplained gap between two attempts.
+            self._write(record, decision, score, now, reason, Outcome.NOT_ATTEMPTED, 0, source, reasoning)
+            wait = guardrails.hours_until_permitted(now)
+            clock.schedule_in(
+                record.row_id, max(wait, 1.0), WakeReason.PEAK_WINDOW_CLEARED
+            )
+            return
+
         if action is Action.RETRY_SCHEDULED:
             # A scheduled retry consumes no attempt now; it books one for later.
             self._write(record, decision, score, now, reason, Outcome.NOT_ATTEMPTED, 0, source, reasoning)

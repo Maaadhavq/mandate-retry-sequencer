@@ -31,6 +31,7 @@ HARD_RULES: frozenset[str] = frozenset(
         "hard_max_attempts",
         "hard_cooling_period",
         "hard_horizon_exhausted",
+        "hard_peak_window",
     }
 )
 
@@ -38,6 +39,40 @@ HARD_RULES: frozenset[str] = frozenset(
 BAND_RULES: frozenset[str] = frozenset(
     {"band_high", "band_mid_upper", "band_mid_lower", "band_low"}
 )
+
+
+def in_peak_window(moment: datetime) -> bool:
+    """True when NPCI forbids autopay execution at `moment`. SPEC §3.3.
+
+    Windows are half-open `[start, end)`, so 13:00 exactly is permitted and 12:59 is not.
+    Evaluated in the moment's own offset — `SIM_START_ISO` is +05:30, so this is IST
+    throughout and there is no timezone conversion to get wrong.
+    """
+    hour = moment.hour + moment.minute / 60.0 + moment.second / 3600.0
+    return any(start <= hour < end for start, end in policy.PEAK_WINDOWS_IST)
+
+
+def next_permitted_moment(moment: datetime) -> datetime:
+    """The earliest instant at or after `moment` when a debit may execute.
+
+    Returns `moment` unchanged when it is already permitted, so callers can use this
+    unconditionally. A record is deferred to the window edge, never dropped and never
+    silently executed inside a peak window.
+    """
+    for start, end in policy.PEAK_WINDOWS_IST:
+        hour = moment.hour + moment.minute / 60.0 + moment.second / 3600.0
+        if start <= hour < end:
+            edge = moment.replace(
+                hour=int(end), minute=int(round((end % 1) * 60)), second=0, microsecond=0
+            )
+            # Re-check: consecutive windows could in principle abut.
+            return next_permitted_moment(edge) if in_peak_window(edge) else edge
+    return moment
+
+
+def hours_until_permitted(moment: datetime) -> float:
+    """How long a record must wait for the next legal window. 0.0 when already legal."""
+    return (next_permitted_moment(moment) - moment).total_seconds() / 3600.0
 
 
 def hours_since_last_attempt(record: MandateRecord, now: datetime) -> float:
@@ -135,6 +170,21 @@ def _hard_rule(record: MandateRecord, now: datetime) -> Decision | None:
             action=Action.STOP,
             rules_fired=("hard_horizon_exhausted",),
             reason=f"Past the {policy.HORIZON_DAYS}-day campaign horizon. Expired.",
+        )
+
+    # 5. NPCI execution window. Checked last of the hard rules on purpose: the three STOPs
+    #    above are terminal, and there is no sense deferring a record that is already dead.
+    #    Cooling is checked before this because when both bind, cooling is the longer wait;
+    #    when it expires into a peak window, this rule catches it on the next wake.
+    if in_peak_window(now):
+        resume = next_permitted_moment(now)
+        return Decision(
+            action=Action.BLOCKED_PEAK_WINDOW,
+            rules_fired=("hard_peak_window",),
+            reason=(
+                f"{now:%H:%M} IST is inside an NPCI peak window; autopay execution is "
+                f"restricted to non-peak hours. Deferred to {resume:%H:%M}."
+            ),
         )
 
     return None

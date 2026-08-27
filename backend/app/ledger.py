@@ -222,8 +222,8 @@ def _false_positive_cost(rows: Iterable[LedgerRow]) -> int:
 
 
 def _stopped_by_hard_rule(rows: Iterable[LedgerRow]) -> int:
-    """Records a hard rule ended. Cooling is excluded: it defers, it does not stop."""
-    stopping = HARD_RULES - {"hard_cooling_period"}
+    """Records a hard rule ended. Deferrals are excluded — they postpone, they do not stop."""
+    stopping = HARD_RULES - {"hard_cooling_period", "hard_peak_window"}
     return len({r.row_id for r in rows if stopping & set(r.rules_fired)})
 
 

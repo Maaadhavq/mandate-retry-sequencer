@@ -12,12 +12,21 @@ from typing import Final
 # --------------------------------------------------------------------------------------
 # Provenance — read this before citing any of it as a regulatory fact.
 #
-# The four constants in this block are derived from public industry summaries of NPCI
-# UPI Autopay / e-mandate behaviour. They were NOT read out of the primary NPCI circular.
-# They are plausible, they are internally consistent, and they are ASSUMPTIONS.
+# These constants describe NPCI UPI Autopay / e-mandate behaviour. They were NOT read out
+# of the primary NPCI circular. Their status differs, and the difference matters:
 #
-# ARCHITECTURE.md must repeat this disclosure. Claiming regulatory precision that has not
-# been verified against the source document is the fastest way to lose a payments panel.
+#   CORROBORATED by independent public reporting on NPCI's rules effective 1 Aug 2025:
+#     - MAX_ATTEMPTS = 4 (one original execution plus three retries)
+#     - RETRY_WINDOWS_HOURS = (24, 72, 168)
+#     - PEAK_WINDOWS_IST — autopay restricted to non-peak hours
+#
+#   ASSUMPTION, not corroborated anywhere:
+#     - COOLING_PERIOD_HOURS = 24
+#     - HORIZON_DAYS = 14 (a campaign choice, not a regulation)
+#
+# ARCHITECTURE.md must repeat this split. Claiming regulatory precision that has not been
+# verified against the source document is the fastest way to lose a payments panel — but
+# so is flagging a verifiable rule as a guess.
 # --------------------------------------------------------------------------------------
 
 #: Total debit attempts permitted per mandate cycle: 1 original + 3 retries.
@@ -31,6 +40,23 @@ RETRY_WINDOWS_HOURS: Final[tuple[int, ...]] = (24, 72, 168)
 
 #: Campaign horizon. After this, an unresolved record is written off as EXPIRED.
 HORIZON_DAYS: Final[int] = 14
+
+# --------------------------------------------------------------------------------------
+# Rule 5 — the NPCI execution window (SPEC §3.3).
+#
+# From 1 August 2025 NPCI restricts non-customer-initiated APIs, which is what a mandate
+# debit is, to non-peak hours. Roughly 40% of the day is closed to autopay execution.
+#
+# This is the only constraint here that is checkable against a dated public source, and it
+# is the one that makes the scheduler interesting: the payday interaction says when the
+# money lands, this says when we are allowed to ask for it, and they routinely disagree.
+# --------------------------------------------------------------------------------------
+
+#: Peak windows, IST, as [start_hour, end_hour) in decimal hours. Autopay is BLOCKED here.
+#: 21.5 is 21:30.
+PEAK_WINDOWS_IST: Final[tuple[tuple[float, float], ...]] = ((10.0, 13.0), (17.0, 21.5))
+
+#: Everything else is permitted: before 10:00, 13:00-17:00, and after 21:30.
 
 # --------------------------------------------------------------------------------------
 # Score bands (SPEC §2.3). Exhaustive and non-overlapping across [0.0, 1.0].
@@ -94,6 +120,9 @@ class Action(StrEnum):
     DUNNING_P2P = "DUNNING_P2P"
     STOP = "STOP"
     BLOCKED_COOLING = "BLOCKED_COOLING"
+    #: Rule 5. Guardrail-imposed like BLOCKED_COOLING: the record is deferred to the next
+    #: permitted NPCI window, never dropped, and the agent may never propose it.
+    BLOCKED_PEAK_WINDOW = "BLOCKED_PEAK_WINDOW"
 
 
 class Outcome(StrEnum):

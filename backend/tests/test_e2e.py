@@ -242,6 +242,52 @@ def test_response_still_matches_the_frozen_shape() -> None:
     assert shape(live) == shape(stub), "the live response drifted from the frozen §7.2 shape"
 
 
+def test_no_debit_ever_executes_inside_an_npci_peak_window(
+    ledger_rows: list[dict],
+) -> None:
+    """Rule 5, SPEC §3.3 — the one constraint here checkable against a dated public source.
+
+    NPCI restricts autopay execution to non-peak hours from 1 August 2025. Roughly 40% of
+    the day is closed. This asserts the guarantee over every real debit in the run, not
+    over a sampled few: a single execution at 11:00 or 19:00 IST would be non-compliant.
+    """
+    from datetime import datetime
+
+    from backend.app.guardrails import in_peak_window
+
+    debits = [r for r in ledger_rows if int(r["attempt_cost_paise"]) > 0]
+    assert debits, "no debits in the run — this test would pass vacuously"
+
+    illegal = [
+        r for r in debits if in_peak_window(datetime.fromisoformat(r["sim_ts"]))
+    ]
+    assert not illegal, (
+        f"{len(illegal)} of {len(debits)} debits executed inside an NPCI peak window, "
+        f"e.g. {illegal[0]['row_id']} at {illegal[0]['sim_ts']}"
+    )
+
+
+def test_peak_deferrals_actually_happen(ledger_rows: list[dict]) -> None:
+    """The rule must bite. If nothing defers, the test above passes for the wrong reason."""
+    deferred = [r for r in ledger_rows if "hard_peak_window" in r["rules_fired"]]
+
+    assert deferred, "rule 5 never fired — either the clock or the rule is not wired in"
+    assert all(r["outcome"] == "NOT_ATTEMPTED" for r in deferred)
+    assert all(int(r["recovered_paise"]) == 0 for r in deferred)
+
+
+def test_a_deferred_record_comes_back_and_is_not_dropped(ledger_rows: list[dict]) -> None:
+    """A peak deferral postpones. It must never be a silent write-off."""
+    deferred_ids = {
+        r["row_id"] for r in ledger_rows if "hard_peak_window" in r["rules_fired"]
+    }
+    assert deferred_ids
+
+    for row_id in deferred_ids:
+        rows = [r for r in ledger_rows if r["row_id"] == row_id]
+        assert len(rows) > 1, f"{row_id} was deferred and then never woken again"
+
+
 def test_bad_input_is_a_422_not_a_stack_trace() -> None:
     """SPEC §8.4: nothing degrades to a traceback on screen.
 

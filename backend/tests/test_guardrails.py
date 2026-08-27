@@ -287,3 +287,110 @@ def test_technical_decline_retries_on_the_shortest_rung():
     d = decide_fallback(rec(failure_reason=FailureReason.TECHNICAL_DECLINE,
                            days_to_payday=20), 0.5)
     assert d.retry_delay_hours == 24
+
+
+# --------------------------------------------------------------------------------------
+# Rule 5 — the NPCI execution window (SPEC §3.3)
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "hour,expected_peak",
+    [
+        (0.0, False),    # midnight — permitted
+        (9.99, False),   # just before the morning peak opens
+        (10.0, True),    # peak opens, inclusive
+        (11.5, True),
+        (12.99, True),   # still peak
+        (13.0, False),   # peak closes, exclusive — 13:00 is permitted
+        (16.99, False),
+        (17.0, True),    # evening peak opens
+        (20.0, True),
+        (21.49, True),   # 21:29 — still peak
+        (21.5, False),   # 21:30 — permitted
+        (23.99, False),
+    ],
+)
+def test_peak_window_boundaries(hour: float, expected_peak: bool) -> None:
+    """Half-open [start, end): 13:00 is legal, 12:59 is not. Off-by-one here is a fine."""
+    moment = SIM_START + timedelta(hours=hour)
+    assert guardrails.in_peak_window(moment) is expected_peak
+
+
+@pytest.mark.parametrize(
+    "hour,expected_resume_hour",
+    [
+        (10.0, 13.0),
+        (12.5, 13.0),
+        (17.0, 21.5),
+        (21.0, 21.5),
+    ],
+)
+def test_deferral_lands_on_the_window_edge(hour: float, expected_resume_hour: float) -> None:
+    moment = SIM_START + timedelta(hours=hour)
+    resume = guardrails.next_permitted_moment(moment)
+
+    assert resume.hour + resume.minute / 60.0 == expected_resume_hour
+    assert not guardrails.in_peak_window(resume)
+
+
+def test_a_permitted_moment_is_returned_unchanged() -> None:
+    for hour in (0.0, 8.0, 14.0, 22.0):
+        moment = SIM_START + timedelta(hours=hour)
+        assert guardrails.next_permitted_moment(moment) == moment
+        assert guardrails.hours_until_permitted(moment) == 0.0
+
+
+def test_rule5_defers_rather_than_stopping() -> None:
+    """BLOCKED_PEAK_WINDOW postpones. It must never be a write-off."""
+    peak = SIM_START + timedelta(hours=11)
+    decision = evaluate(rec(last_attempt_at=peak - timedelta(hours=48)), 0.9, peak)
+
+    assert decision.action is Action.BLOCKED_PEAK_WINDOW
+    assert "hard_peak_window" in decision.rules_fired
+    assert decision.action is not Action.STOP
+
+
+def test_rule5_beats_even_a_top_score() -> None:
+    """A 0.99 does not buy an execution inside a window NPCI has closed."""
+    peak = SIM_START + timedelta(hours=19)
+    decision = evaluate(rec(last_attempt_at=peak - timedelta(hours=72)), 0.99, peak)
+
+    assert decision.action is Action.BLOCKED_PEAK_WINDOW
+
+
+def test_terminal_rules_beat_the_peak_window() -> None:
+    """No sense deferring a record that is already dead. STOP wins over a deferral."""
+    peak = SIM_START + timedelta(hours=11)
+
+    revoked = evaluate(
+        rec(failure_reason=FailureReason.REVOKED_MANDATE, last_attempt_at=peak - timedelta(hours=48)),
+        0.9,
+        peak,
+    )
+    assert revoked.action is Action.STOP
+    assert "hard_revoked_mandate" in revoked.rules_fired
+
+    capped = evaluate(
+        rec(attempt_number=4, last_attempt_at=peak - timedelta(hours=48)), 0.9, peak
+    )
+    assert capped.action is Action.STOP
+
+
+def test_cooling_beats_the_peak_window_when_both_bind() -> None:
+    """Both defer; cooling is the longer wait, so it is the binding constraint."""
+    peak = SIM_START + timedelta(hours=11)
+    decision = evaluate(rec(last_attempt_at=peak - timedelta(hours=2)), 0.9, peak)
+
+    assert decision.action is Action.BLOCKED_COOLING
+
+
+def test_the_agent_can_never_propose_a_peak_block() -> None:
+    """Guardrail-imposed actions are not on the agent's menu (SPEC §3.3)."""
+    assert Action.BLOCKED_PEAK_WINDOW not in policy.AGENT_PROPOSABLE
+
+    peak = SIM_START + timedelta(hours=11)
+    vetoed = guardrails.validate_proposal(
+        rec(last_attempt_at=peak - timedelta(hours=48)), 0.44, peak, Action.RETRY_NOW, None
+    )
+    assert vetoed.action is not Action.RETRY_NOW

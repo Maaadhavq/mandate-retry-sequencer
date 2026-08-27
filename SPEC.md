@@ -209,14 +209,39 @@ an action, that proposal is re-validated against rules 1–4 before execution �
 - Boundaries are closed below: `24.0` hours is **not** cooling; `23.9` is.
 - `evaluate` is deterministic and referentially transparent — same inputs, same `Decision`, forever.
 
-### 3.3 Constraint provenance — flag these honestly
+### 3.3 Rule 5 — the NPCI execution window
 
-Max 4 attempts, 24h cooling, and the 24/72/168h retry ladder are **derived from industry summaries
-of NPCI UPI Autopay behaviour, not read from the primary NPCI circular.** They are encoded in one
-place, `backend/app/policy.py`, as named constants with source comments.
+**UPI Autopay debits may only execute during non-peak hours.** NPCI's rules effective
+**1 August 2025** restrict non-customer-initiated APIs — which is what a mandate debit is — to:
 
-`ARCHITECTURE.md` must state this explicitly. Claiming regulatory precision you have not verified is
-the fastest way to lose a payments panel. *(Closes `CONTEXT_1.md` §7 Q1 — as a stated assumption.)*
+| | IST |
+|---|---|
+| **Permitted** | before **10:00** · **13:00–17:00** · after **21:30** |
+| **Peak, blocked** | **10:00–13:00** · **17:00–21:30** |
+
+A retry that comes due inside a peak window is **deferred to the next permitted window**, not
+executed and not dropped. The action is `BLOCKED_PEAK_WINDOW`, it is guardrail-imposed like
+`BLOCKED_COOLING`, and the agent may never propose it.
+
+This rule is load-bearing for the whole submission, for a reason worth stating plainly. Rules 1–4
+are honest assumptions (§3.4). Rule 5 is **the one constraint that is checkable against a dated
+public source**, and it is the one that says the system understands the rail rather than the
+funnel. It also creates the scheduling problem the rest of the design exists to resolve: §2.2's
+payday interaction says *when the money arrives*, rule 5 says *when we are permitted to ask for
+it*, and the two do not agree.
+
+### 3.4 Constraint provenance — flag these honestly
+
+Rules 1–3 (max attempts, 24h cooling, the 24/72/168h ladder) are **derived from public summaries of
+NPCI UPI Autopay behaviour, not read from the primary circular.** Two are now corroborated: the
+four-attempt cap (1 original + 3 retries) and the 24/72/168h ladder both appear in independent
+reporting on the August 2025 rules. The 24h cooling period remains an assumption. Rule 5's windows
+are cited to that same dated change.
+
+Everything lives in one place, `backend/app/policy.py`, as named constants with source comments.
+`ARCHITECTURE.md` must state which are corroborated and which are not. Claiming regulatory
+precision you have not verified is the fastest way to lose a payments panel.
+*(Closes `CONTEXT_1.md` §7 Q1.)*
 
 ---
 

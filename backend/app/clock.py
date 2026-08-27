@@ -31,6 +31,8 @@ class WakeReason(StrEnum):
     COOLING_EXPIRED = "cooling_expired"
     SCHEDULED_RETRY = "scheduled_retry"
     PROMISE_DUE = "promise_due"
+    #: Deferred out of an NPCI peak window (rule 5) and now back at a legal hour.
+    PEAK_WINDOW_CLEARED = "peak_window_cleared"
 
 
 @dataclass(order=True)

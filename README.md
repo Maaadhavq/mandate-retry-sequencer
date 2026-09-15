@@ -15,6 +15,19 @@ the batch on load (the free-tier backend takes up to a minute to wake the first 
 
 [![The dashboard: the pipeline as a rail, and where the 500 debits went](docs/dashboard.png)](https://mandate-retry-frontend.onrender.com)
 
+Sixty seconds on the live page, top to bottom:
+
+1. **The rail** — 500 in → 187 stopped by a rule → 248 routed to the agent, 11 of its proposals
+   vetoed → 266 debits executed, 0 inside an NPCI peak window → ₹44L recovered.
+2. **Where the 500 went** — a Sankey from first touch (rule or score band) to outcome. Edge
+   weights are records and sum to 500; a test pins that.
+3. **The rulebook** — each rule with its provenance tier, fire count and override count (always
+   zero). Rule 5 carries a 24-hour clock: every executed debit is a tick, none inside the arcs.
+4. **The decider** — the score band the agent is confined to, and the row where a rule refused
+   a proposed retry.
+5. **What it did not recover** — every unrecovered record, largest first, never collapsed.
+   Select one for its SHAP explanation.
+
 **More than 20 million UPI Autopay mandates are revoked every month in India because the customer's
 balance was short.** Retrying them is not the hard part — every gateway does that. The hard part is
 proving *which* retries were permitted, which were refused, what being wrong cost, and what the

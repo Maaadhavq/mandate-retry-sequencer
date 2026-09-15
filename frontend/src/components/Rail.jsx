@@ -66,8 +66,10 @@ export default function Rail({ data, trace }) {
         ))}
       </ol>
       <p className="rail-thesis">
-        An agent proposal is a request, not an authority. The guardrails run <em>before</em> the
-        score is read and <em>again</em> on every proposal before anything executes.
+        <span>
+          An agent proposal is a request, not an authority. The guardrails run <em>before</em> the
+          score is read and <em>again</em> on every proposal before anything executes.
+        </span>
       </p>
     </section>
   );

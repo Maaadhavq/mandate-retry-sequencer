@@ -15,15 +15,15 @@ export default function Skeleton({ slow }) {
         ))}
       </ol>
       <p className="rail-thesis">
-        Scoring 500 failed debits, running the rules, stepping a 14-day clock in one-hour ticks…
-        {slow && (
-          <>
-            {" "}
-            <span className="slow">
+        <span>
+          Scoring 500 failed debits, running the rules, stepping a 14-day clock in one-hour ticks…
+          {slow && (
+            <em className="slow">
+              {" "}
               The backend runs on a free tier and sleeps when idle. First wake takes up to a minute.
-            </span>
-          </>
-        )}
+            </em>
+          )}
+        </span>
       </p>
     </section>
   );

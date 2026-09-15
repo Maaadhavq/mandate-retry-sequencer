@@ -470,6 +470,9 @@ td.num,
   border-top: 1px dashed var(--line);
   color: var(--text-2);
   font-size: 0.92rem;
+}
+.rail-thesis span {
+  display: block;
   max-width: 78ch;
 }
 .rail-thesis em {
@@ -493,7 +496,9 @@ td.num,
   border-color: var(--line-2);
 }
 .slow {
+  font-style: normal;
   color: var(--brass-ink);
+  border: 0;
 }
 
 @keyframes rail-light {
@@ -535,7 +540,7 @@ td.num,
   fill: var(--text-2);
   paint-order: stroke;
   stroke: var(--ink);
-  stroke-width: 4px;
+  stroke-width: 3px;
   stroke-linejoin: round;
 }
 .flow .node-count {

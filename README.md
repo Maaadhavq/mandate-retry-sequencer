@@ -18,7 +18,7 @@ system chose not to do.
 > On the committed seed it recovers **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500
 > records: 187 stopped by a hard rule, 11 agent-proposed retries vetoed by one, **zero of 266 debits
 > executed inside an NPCI peak window**, and ₹82,07,516 it failed to recover listed in full rather
-> than hidden. **205 tests**, and a fresh clone with no API key reproduces every figure. The
+> than hidden. **214 tests**, and a fresh clone with no API key reproduces every figure. The
 > milestone history is in [SPEC.md](SPEC.md) §10.
 
 ### What it refuses to do
@@ -74,7 +74,9 @@ In a second terminal:
 cd frontend && npm install && npm run dev              # http://localhost:5173
 ```
 
-Open http://localhost:5173 and press **Run batch**.
+Open http://localhost:5173. The dashboard runs the batch on load and renders the rail: where the
+500 debits went, each rule's fire count, a 24-hour clock proving no debit ran in an NPCI peak
+window, the score band the agent is confined to, and every record it failed to recover.
 
 On macOS or Linux, use `.venv/bin/python` in place of `.venv/Scripts/python`.
 
@@ -86,7 +88,7 @@ On macOS or Linux, use `.venv/bin/python` in place of `.venv/Scripts/python`.
 
 ### Ask why a record scored what it did
 
-Click any row in the honest-failures table, or:
+Select any row in the failures table, or:
 
 ```bash
 curl -s localhost:8000/explain/mrs_805558
@@ -97,7 +99,7 @@ explanation layer that works in the ablation.
 
 ### Check the headline figure yourself
 
-After pressing **Run batch**, re-derive the total straight from the ledger. This script
+After a run, re-derive the total straight from the ledger. This script
 deliberately does not import `ledger.py` - if it shared the aggregation code, agreement would be a
 tautology rather than a check (SPEC 8.2 gate 2):
 
@@ -163,8 +165,9 @@ It does not here, because decisions resolve in three layers (SPEC §4.3):
   [ LEDGER ]      append-only · input, score, rules fired, action, outcome, ₹
         │
         ▼
-  [ DASHBOARD ]   ₹ recovered vs ₹ at risk · cohorts · attempts per recovery
-                  · honest list of everything it failed to recover
+  [ DASHBOARD ]   the pipeline as the interface: where the 500 went, the
+                  rulebook with live fire-counts, the NPCI 24h clock,
+                  the decider's band · honest list of everything it failed to recover
 ```
 
 A hard rule always beats the score, and always beats the agent. An agent proposal is a request, not

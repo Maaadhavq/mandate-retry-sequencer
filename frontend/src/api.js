@@ -15,6 +15,13 @@ export async function runBatch({ seed = 42, n = 500, useLlm = true } = {}) {
   return res.json();
 }
 
+/** Where the debits went — a second, read-only cut of the ledger the run just wrote. */
+export async function fetchTrace() {
+  const res = await fetch(`${BASE}/batch/trace`);
+  if (!res.ok) throw new Error(`Trace failed: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
 /** Why the scorer gave this record its score. SHAP, no API key needed (SPEC §7, F9). */
 export async function explain(rowId) {
   const res = await fetch(`${BASE}/explain/${encodeURIComponent(rowId)}`);
@@ -33,6 +40,11 @@ export function rupees(paise, { compact = false } = {}) {
   }).format(value);
 }
 
-export function percent(fraction) {
-  return `${(fraction * 100).toFixed(1)}%`;
+export function percent(fraction, digits = 1) {
+  return `${(fraction * 100).toFixed(digits)}%`;
+}
+
+/** Indian grouping without the currency sign, for counts and compact figures. */
+export function count(n) {
+  return new Intl.NumberFormat("en-IN").format(n);
 }

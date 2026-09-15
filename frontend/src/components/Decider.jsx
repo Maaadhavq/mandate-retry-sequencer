@@ -76,9 +76,11 @@ export default function Decider({ data, trace }) {
             ))}
           </ul>
           <p className="decider-note">
-            {agentRan
-              ? "Agent decisions replay byte-for-byte from the committed cache, so the run is reproducible without a key."
-              : "No API key and an empty cache on this host: the deterministic fallback stood in for the agent on every routed record. The ₹ delta between the two is zero by construction — the ablation script says so rather than printing a zero that looks like a result."}
+            {!data.config.use_llm
+              ? "Agent switched off for this run: every record in the band fell through to the deterministic policy. Switch it on and run again to compare — with no key and an empty cache the two runs are identical, and the page says so rather than showing a difference that is not there."
+              : agentRan
+                ? "Agent decisions replay byte-for-byte from the committed cache, so the run is reproducible without a key."
+                : "No API key and an empty cache on this host: the deterministic fallback stood in for the agent on every routed record. The ₹ delta between the two is zero by construction — the ablation script says so rather than printing a zero that looks like a result."}
           </p>
         </div>
       </div>

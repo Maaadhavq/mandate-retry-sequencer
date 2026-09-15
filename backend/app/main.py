@@ -8,6 +8,7 @@ when the real pipeline landed — the response model never changed.
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from functools import lru_cache
 
@@ -29,9 +30,15 @@ from backend.app.schemas import (
     Promises,
     RunConfig,
     Totals,
+    TraceResponse,
 )
 
 VERSION = "0.1.0"
+
+#: One campaign at a time. `run_campaign` truncates and rewrites `data/ledger.jsonl`; two
+#: concurrent runs would interleave their rows and every downstream figure would double.
+#: Sync endpoints run on a threadpool, so this is a real race on a shared host.
+_RUN_LOCK = threading.Lock()
 
 app = FastAPI(
     title="Mandate Retry Sequencer",
@@ -142,6 +149,25 @@ def explain(row_id: str) -> ExplainResponse:
     return ExplainResponse.model_validate(_explainer().explain(record).to_dict())
 
 
+@app.get("/batch/trace", response_model=TraceResponse)
+def trace() -> TraceResponse:
+    """Where the debits went. Derived from the ledger the last `/batch/run` wrote.
+
+    The dashboard's pipeline view — rule fire-counts, the hour-of-day clock, the 14-day
+    curve — comes from here. It is a second read of the same append-only rows, so nothing on
+    it can disagree with the headline without the ledger itself being wrong.
+    """
+    from backend.app.trace import load_rows, summarise
+
+    try:
+        with _RUN_LOCK:
+            rows = load_rows()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return TraceResponse.model_validate(summarise(rows))
+
+
 @app.post("/batch/run", response_model=BatchRunResponse)
 def run_batch(req: BatchRunRequest) -> BatchRunResponse:
     """Run a recovery campaign over a batch of failed mandate debits.
@@ -156,7 +182,8 @@ def run_batch(req: BatchRunRequest) -> BatchRunResponse:
     from backend.app.runner import run_campaign
 
     try:
-        payload = run_campaign(seed=req.seed, n=req.n, use_llm=req.use_llm)
+        with _RUN_LOCK:
+            payload = run_campaign(seed=req.seed, n=req.n, use_llm=req.use_llm)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

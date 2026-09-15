@@ -113,3 +113,42 @@ class BatchRunRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+# -- /batch/trace — a read-only cut of the last run's ledger, for the pipeline view -------
+
+
+class TraceFlow(BaseModel):
+    input: int
+    stopped_at_entry: dict[str, int]
+    stopped_later: dict[str, int]
+    band_high: int
+    band_low: int
+    agent_band: int
+    agent_vetoed: int
+    recovered_records: int
+    unrecovered_records: int
+
+
+class TraceDay(BaseModel):
+    day: int
+    recovered_paise: int
+    attempts: int
+    recoveries: int
+
+
+class TraceEdge(BaseModel):
+    source: str
+    target: str
+    n: int
+
+
+class TraceResponse(BaseModel):
+    flow: TraceFlow
+    transitions: list[TraceEdge]
+    rules_fired: dict[str, int]
+    debits_by_hour: list[int] = Field(min_length=24, max_length=24)
+    peak_violations: int
+    peak_deferrals: int
+    daily: list[TraceDay]
+    score_histogram: list[int]

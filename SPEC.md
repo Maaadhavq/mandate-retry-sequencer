@@ -375,6 +375,7 @@ ARCHITECTURE.md  README.md  SPEC.md  CLAUDE.md
 | POST | `/batch/run` | run the campaign, return §7.2 |
 | GET | `/ledger` | paged raw rows, for the audit trail |
 | GET | `/explain/{row_id}` | SHAP contributions |
+| GET | `/batch/trace` | a second, read-only cut of the last run's ledger: how the input partitioned across rules and bands, debits by hour of day, the 14-day curve. Derived, never authoritative — it must agree with §7.2 |
 
 `POST /batch/run` body: `{"seed": 42, "n": 500, "use_llm": true}`.
 
@@ -507,7 +508,7 @@ Nothing else on the critical path can start early — a scorer with no data is n
 **All five are complete.** `/batch/run` returns **₹44,25,090 recovered of ₹1,26,32,606 at risk**
 (35.0%) over 500 records with no LLM in the loop; `verify_totals.py` re-derives the same paise
 from the ledger without importing `ledger.py`; 11 rows carry a hard-rule veto of an agent-proposed
-retry; the §8.4 clone test passes with no API key. **205 tests.**
+retry; the §8.4 clone test passes with no API key. **214 tests.**
 
 The clone test earned its place immediately: it found that `models/scorer.txt` was checked out
 with CRLF endings and LightGBM refused to parse it, so the repo worked for the author and was

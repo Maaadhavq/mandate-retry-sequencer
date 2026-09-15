@@ -54,7 +54,9 @@ flowchart TD
     H --> I["Ledger<br/>append-only JSONL"]
     S --> I
     V --> I
-    I --> J["Dashboard<br/>₹ recovered vs ₹ at risk"]
+    I --> J["Dashboard<br/>the pipeline as the interface"]
+    I --> T["/batch/trace<br/>second read of the ledger"]
+    T --> J
 ```
 
 A 14-day simulated clock steps the whole thing in one-hour ticks. Records wake when they are due —
@@ -317,11 +319,13 @@ backend/app/
   ledger.py       append-only rows + the §7.2 aggregate
   runner.py       the wiring, and only the wiring
   main.py         FastAPI surface
+  trace.py        a second, read-only cut of the ledger for the dashboard's pipeline view
 backend/scripts/
   generate_data.py  the synthetic world and its hidden ground truth
   train_scorer.py   fit, evaluate, report — with the holdout sealed
   verify_totals.py  independent recomputation, imports no app code
-frontend/src/     React + Recharts dashboard
+frontend/src/     React dashboard — the rail, a d3 Sankey of where the debits went, the
+                  rulebook with an NPCI 24h clock, the decider's band, the failures ledger
 ```
 
 The dependency rule that keeps this honest: `policy.py` imports nothing from this codebase, so

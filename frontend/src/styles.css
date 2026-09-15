@@ -545,12 +545,19 @@ td.num,
 .flow-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  margin: 12px 0 0;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
   padding: 0;
   list-style: none;
   font-size: 0.8rem;
   color: var(--text-2);
+}
+.flow-legend b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text);
 }
 .flow-legend i,
 .segment-legend i,
@@ -706,14 +713,16 @@ td.num,
 .rule-5 {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 220px;
   grid-template-rows: auto auto 1fr;
   column-gap: 28px;
+  row-gap: 12px;
   padding-top: 22px;
   padding-bottom: 22px;
 }
 .rule-5 .rule-head {
   grid-column: 1;
+  grid-row: 1;
 }
 .rule-5 .rule-text {
   grid-column: 1;
@@ -721,24 +730,28 @@ td.num,
   font-size: 0.95rem;
   color: var(--text);
 }
-.rule-5 .rule-provenance {
+.rule-5 .windows {
   grid-column: 1;
   grid-row: 3;
-  align-self: end;
+  align-self: start;
+}
+.rule-5 .rule-provenance {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
 }
 .rule-5 .rule-stats {
   grid-column: 2;
-  grid-row: 3;
-  align-self: end;
+  grid-row: 2 / span 2;
+  align-self: start;
+  margin-top: 2px;
+  border-top: 0;
+  padding-top: 0;
 }
 .rule-5 .clock {
   grid-column: 3;
   grid-row: 1 / span 3;
   align-self: center;
-}
-.rule-5 .windows {
-  grid-column: 2;
-  grid-row: 1 / span 2;
 }
 .rule-head {
   display: flex;

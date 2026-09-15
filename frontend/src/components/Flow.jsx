@@ -141,13 +141,13 @@ export default function Flow({ trace }) {
           })}
         </svg>
       )}
-      {compact && graph && (
-        <ul className="flow-legend">
+      {graph && (
+        <ul className="flow-legend" aria-label="first touch, by bucket">
           {graph.nodes
             .filter((n) => n.col === 1)
             .map((n) => (
               <li key={n.id} className={`tone-${toneOf(n.id)}`}>
-                <i aria-hidden="true" /> {count(n.value)} {n.name}
+                <i aria-hidden="true" /> <b>{count(n.value)}</b> {n.name}
               </li>
             ))}
         </ul>

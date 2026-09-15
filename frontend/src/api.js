@@ -1,4 +1,7 @@
-const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+// Set VITE_API_URL at build time to point the dashboard at a deployed backend.
+// Render's `fromService` gives a bare host, so a missing scheme is filled in here.
+const RAW = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE = (/^https?:\/\//.test(RAW) ? RAW : `https://${RAW}`).replace(/\/+$/, "");
 
 export async function runBatch({ seed = 42, n = 500, useLlm = true } = {}) {
   const res = await fetch(`${BASE}/batch/run`, {

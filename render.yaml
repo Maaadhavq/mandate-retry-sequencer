@@ -1,0 +1,36 @@
+# Render Blueprint - two services: the FastAPI backend and the static React dashboard.
+#
+# The backend generates both datasets at build time (neither is committed - SPEC 2.1), so a
+# fresh deploy needs no manual step. The scorer in models/ is committed and is not retrained.
+# The frontend receives the backend's hostname via `fromService`; api.js adds the scheme.
+services:
+  - type: web
+    name: mandate-retry-backend
+    runtime: python
+    plan: free
+    buildCommand: >-
+      pip install uv &&
+      uv sync --extra dev &&
+      uv run python -m backend.scripts.generate_data --seed 42 --n 500 --name batch &&
+      uv run python -m backend.scripts.generate_data --seed 1042 --n 8000 --name corpus --split
+    startCommand: uv run uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: UV_PROJECT_ENVIRONMENT
+        value: .venv
+
+  - type: web
+    name: mandate-retry-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: mandate-retry-backend
+          property: host

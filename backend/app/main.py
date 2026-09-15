@@ -1,12 +1,13 @@
 """FastAPI surface for the mandate retry sequencer.
 
-Gate A (SPEC §10.2): `/batch/run` returns the frozen §7.2 shape as a stub, so the frontend
-can be built against a real contract before the pipeline exists. `run_batch()` is the one
-function that gets replaced at Gate B — the response model does not change.
+The `/batch/run` response shape (SPEC §7.2) was frozen before the pipeline existed, so the
+frontend could be built against a real contract. `run_batch()` was the one function replaced
+when the real pipeline landed — the response model never changed.
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 from functools import lru_cache
 
@@ -38,10 +39,13 @@ app = FastAPI(
     description="Bounded recovery workflow for failed UPI Autopay mandate debits.",
 )
 
-# The dashboard runs on the Vite dev server during development.
+# The dashboard runs on the Vite dev server during development and on Render when deployed.
+# `CORS_ORIGINS` (comma-separated) adds any other origin without a code change.
+_extra_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", *_extra_origins],
+    allow_origin_regex=r"https://.*\.onrender\.com",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -53,9 +57,9 @@ def health() -> HealthResponse:
 
 
 def _stub_response(req: BatchRunRequest) -> BatchRunResponse:
-    """Gate-A placeholder. Retained only as the frozen-shape reference for tests.
+    """Skeleton-phase placeholder. Retained only as the frozen-shape reference for tests.
 
-    No longer served: `/batch/run` runs the real pipeline as of Gate B. Kept because a
+    No longer served: `/batch/run` runs the real pipeline. Kept because a
     test asserts the live response still matches this shape field for field, which is how
     the §7.2 freeze stays enforced rather than merely promised.
     """
@@ -90,7 +94,7 @@ def _stub_response(req: BatchRunRequest) -> BatchRunResponse:
                 stopped_by="STUB",
                 rules_fired=["stub_no_pipeline_yet"],
                 score=0.11,
-                agent_reasoning="Stub row. Replaced at Gate B by a real ledger read.",
+                agent_reasoning="Stub row. Replaced in production by a real ledger read.",
             )
         ],
         agent=AgentStats(
@@ -120,7 +124,7 @@ def explain(row_id: str) -> ExplainResponse:
     """Why the scorer gave this record the score it did. SPEC §7, F9.
 
     Exists because the agent's own reasoning is only populated when the agent actually runs.
-    On a clone with no API key — the configuration a judge will use — this is the whole
+    On a clone with no API key — the default configuration — this is the whole
     explanation layer, and it needs no network.
     """
     try:
@@ -142,10 +146,10 @@ def explain(row_id: str) -> ExplainResponse:
 def run_batch(req: BatchRunRequest) -> BatchRunResponse:
     """Run a recovery campaign over a batch of failed mandate debits.
 
-    Gate B: the stub beneath this is gone and the shape above it did not change, which was
+    The stub beneath this is gone and the shape above it did not change, which was
     the point of freezing §7.2 before any of it existed.
 
-    Missing artefacts surface as a 503 carrying the command that fixes them. A judge who
+    Missing artefacts surface as a 503 carrying the command that fixes them. Anyone who
     clones the repo and calls this before generating data should get a sentence, not a
     stack trace (SPEC §8.4).
     """

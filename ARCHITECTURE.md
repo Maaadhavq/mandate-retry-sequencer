@@ -279,12 +279,12 @@ models on the distribution they were fitted to.
 - **All data is synthetic.** No merchant data was used or is needed. The AUC measures the pipeline
   against a generator this repo wrote, not a real-world outcome. It is a systems result, not a
   modelling one.
-- **The payment rail is simulated.** No Razorpay test-mode calls, no NPCI integration. The executor
+- **The payment rail is simulated.** No gateway test-mode calls, no NPCI integration. The executor
   samples against the generator's own ground-truth function, so "recovered" means "the simulator
   said so."
 - **The 14-day horizon is a simulation, not a scheduler.** There is no durable job queue, no retry
   on process death, no idempotency against a real gateway.
-- **No database.** JSONL and CSV on disk, deliberately — a Postgres dependency is a judge who
+- **No database.** JSONL and CSV on disk, deliberately — a Postgres dependency is a reader who
   cannot run the repo.
 - **No auth, no multi-tenancy, no merchant onboarding.**
 - **The promise-to-pay loop is minimal.** A promise is for the full ticket; there is no

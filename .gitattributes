@@ -8,7 +8,7 @@
 #
 # on every prediction. The repo worked perfectly for the author and was broken for
 # everyone who cloned it. Caught by SPEC 8.4's clone test; it would otherwise have been
-# found by a judge.
+# found by the first person to clone it.
 
 # Source and docs: LF in the repo, normalised on commit.
 * text=auto eol=lf

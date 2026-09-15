@@ -16,7 +16,7 @@ import { explain, runBatch, rupees, percent } from "./api";
  *
  * The honest-failures panel renders every unrecovered record, sorted by rupees
  * descending, and is deliberately never paginated or collapsed by default. It is the
- * part of the submission that says what the system did not manage to do.
+ * part of the dashboard that says what the system did not manage to do.
  */
 export default function App() {
   const [data, setData] = useState(null);
@@ -42,7 +42,7 @@ export default function App() {
     <div className="page">
       <header className="masthead">
         <div>
-          <p className="eyebrow">Razorpay AI Buildathon · Track 03</p>
+          <p className="eyebrow">Agent proposes · rules dispose</p>
           <h1>Mandate Retry Sequencer</h1>
           <p className="sub">
             Bounded recovery workflow for failed UPI Autopay mandate debits.
@@ -69,7 +69,7 @@ export default function App() {
         <div className="error">
           <strong>Could not reach the API.</strong> {error}
           <br />
-          Is the backend running on :8000?
+          Is the backend running? A free-tier host may take up to a minute to wake — try again.
         </div>
       )}
 
@@ -161,8 +161,8 @@ function AgentStrip({ agent, config }) {
 }
 
 /**
- * The moment the whole submission rests on: a rule overriding a proposed retry.
- * Surfaced above the fold rather than buried in the failures table, because a judge
+ * The moment the whole system rests on: a rule overriding a proposed retry.
+ * Surfaced above the fold rather than buried in the failures table, because anyone
  * asking "show me where a rule beat the model" should not have to scroll for it.
  */
 function VetoPanel({ failures }) {

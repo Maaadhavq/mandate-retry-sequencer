@@ -1,12 +1,11 @@
 # SPEC — Mandate Retry Sequencer
 
-Razorpay AI Buildathon, Track 03 (AI Revenue Recovery). Solo build.
-Companion to `CONTEXT_1.md` — the buildathon brief, kept locally and not published in this
-repo. That document is *why this project*, this one is *what "done" means*. Citations to its
-§7 questions below are traceability notes, not links.
+Solo build. This document is *what "done" means* — the contract every component is built and
+tested against. Citations to `CONTEXT_1.md` §7 below refer to a local design-questions note that is
+not published; they are traceability notes, not links.
 
 **Repo:** `mandate-retry-sequencer` (public)
-**Written:** 26 Aug 2026 · **Submit:** 4 Sep 2026 · **Deadline:** 5 Sep 2026
+**Written:** 26 Aug 2026
 **Status of this document:** contract. Changing a decision here means editing this file first.
 
 ---
@@ -41,13 +40,13 @@ through the guardrails before it executes.
 
 ### 1.3 Out of scope — decided, not deferred
 
-- **No real payment APIs.** No Razorpay test-mode calls, no NPCI integration. The executor is a
+- **No real payment APIs.** No gateway test-mode calls, no NPCI integration. The executor is a
   simulator. (Closes `CONTEXT_1.md` §7 Q2.)
-- **No database.** JSONL and CSV on disk. A Postgres dependency is a judge who cannot run the repo.
+- **No database.** JSONL and CSV on disk. A Postgres dependency is a reader who cannot run the repo.
 - **No auth, no multi-tenancy, no merchant onboarding.**
 - **No Hinglish / voice / message-copy generation.** (Closes `CONTEXT_1.md` §7 Q4.)
-- **No deployment as a priority.** A live URL is not a listed deliverable. The bar that replaces it
-  is §8.4: a judge clones the repo and it runs. Deploy only if 2 Sep has spare hours.
+- **Deployment is secondary to the clone test.** The bar is §8.4: anyone clones the repo and it
+  runs, with no API key. A hosted instance (`render.yaml`) exists for convenience, not as proof.
 - **Nothing offense-capable.** Non-negotiable, repo-wide.
 
 ### 1.4 Stack
@@ -55,7 +54,7 @@ through the guardrails before it executes.
 - **Backend:** Python **3.12** pinned via `uv` — *not* the system 3.14, which has unreliable
   LightGBM and SHAP wheels. FastAPI. LightGBM. SHAP.
 - **Frontend:** React + Vite + Recharts. (Closes `CONTEXT_1.md` §7 Q3 — a React app, because the
-  video needs legible motion and live filtering, not a static export.)
+  dashboard needs legible motion and live filtering, not a static export.)
 - **LLM:** `anthropic` Python SDK, model `claude-haiku-4-5`.
 - **Storage:** `data/*.csv`, `data/ledger.jsonl`, `models/*`, `cache/llm/*.json`.
 
@@ -103,7 +102,7 @@ claim rather than weakening it.
 
 The generator holds a hidden `P(recover | features, retry_delay_hours)` that is **never a column**.
 It is built to be learnable but not trivially so, because a generator with clean separable signal
-produces a metric that means nothing to a judge who reads `generate_data.py`.
+produces a metric that means nothing to anyone who reads `generate_data.py`.
 
 Three properties are required:
 
@@ -174,7 +173,7 @@ records stopped by a hard rule · ₹ spent on failed retries.
 2. **Attempts per recovery** — histogram, 1–4.
 3. **Honest failures** — every unrecovered record, the rule or score that stopped it, and the ₹ left
    on the table. Sorted by ₹ descending. **Never paginated away or collapsed by default.** This
-   panel is a deliberate part of the submission.
+   panel is a deliberate part of the design.
 4. **False-positive cost** — ₹ spent retrying payments that were never recoverable, split by whether
    a guardrail or the score should have caught it.
 
@@ -223,7 +222,7 @@ A retry that comes due inside a peak window is **deferred to the next permitted 
 executed and not dropped. The action is `BLOCKED_PEAK_WINDOW`, it is guardrail-imposed like
 `BLOCKED_COOLING`, and the agent may never propose it.
 
-This rule is load-bearing for the whole submission, for a reason worth stating plainly. Rules 1–4
+This rule is load-bearing for the whole system, for a reason worth stating plainly. Rules 1–4
 are honest assumptions (§3.4). Rule 5 is **the one constraint that is checkable against a dated
 public source**, and it is the one that says the system understands the rail rather than the
 funnel. It also creates the scheduling problem the rest of the design exists to resolve: §2.2's
@@ -250,7 +249,7 @@ precision you have not verified is the fastest way to lose a payments panel.
 
 ### 4.1 Why it exists
 
-Track 03 asks for an agent that "determines the right intervention." In the ambiguous band the
+The system needs something that determines the right intervention. In the ambiguous band the
 score alone does not determine it — a ₹49 OTT renewal two days before payday and a ₹40,000 SaaS
 invoice nineteen days out can carry the same 0.44 and warrant different treatment. That judgment is
 what the agent supplies, and its one-sentence reasoning is written to the ledger and rendered on
@@ -283,14 +282,14 @@ figure be reproducible by running a script.
 
 1. **Response cache.** Keyed on `sha256(model + policy_version + canonical_record_json)`. Stored as
    `cache/llm/<key>.json`. **Committed to the repo.** A clone with no API key replays every decision
-   and reproduces the video's totals byte for byte.
+   and reproduces the committed-seed totals byte for byte.
 2. **Deterministic fallback policy** — `decide_fallback(record, score)` in
    `backend/app/guardrails.py`, beside the band logic it mirrors. (`policy.py` stays
    import-free constants, so putting it there would cycle with `models.py`.) Used when there is
    no cache entry and no API key. Pure, tested, no network.
 3. **Ablation.** Because layer 2 exists, `--no-llm` runs the entire pipeline without the agent. The
-   ₹ delta between the two runs is the measured contribution of the agent. Report this number in the
-   video — it is a better answer than any claim about the model.
+   ₹ delta between the two runs is the measured contribution of the agent. Report this number
+   prominently — it is a better answer than any claim about the model.
 
 A cache miss with no key is a fallback, logged as `agent_source: "fallback"` on the ledger row —
 never a crash, never a silent substitution. Every ledger row records `agent_source` as one of
@@ -374,7 +373,7 @@ ARCHITECTURE.md  README.md  SPEC.md  CLAUDE.md
 |---|---|---|
 | GET | `/health` | `{"status":"ok","version":"..."}` |
 | POST | `/batch/run` | run the campaign, return §7.2 |
-| GET | `/ledger` | paged raw rows, for the audit-trail moment in the video |
+| GET | `/ledger` | paged raw rows, for the audit trail |
 | GET | `/explain/{row_id}` | SHAP contributions |
 
 `POST /batch/run` body: `{"seed": 42, "n": 500, "use_llm": true}`.
@@ -445,7 +444,7 @@ The definition of done. Every item produces evidence, not an assertion.
    ledger row for each. If any never fires, the generator is not producing that case — fix the
    generator, do not move on.
 4. **At least one record where the agent proposed a retry and a hard rule vetoed it.** Print that
-   row. This is the demo's centrepiece; if the batch never produces one, seed a case that does.
+   row. This is the system's centrepiece; if the batch never produces one, seed a case that does.
 5. Seed 42 reproduces identical totals across full reruns.
 6. `--no-llm` vs default run: both complete, and the ₹ delta is recorded as the agent's measured
    contribution.
@@ -454,26 +453,26 @@ The definition of done. Every item produces evidence, not an assertion.
 
 Every ₹ figure on the dashboard traces to ledger rows. `verify_totals.py` proves it independently.
 
-### 8.4 The clone test — replaces "deploy at hour 3"
+### 8.4 The clone test
 
 ```
-git clone <repo> /tmp/judge-test && cd /tmp/judge-test
+git clone <repo> /tmp/clone-test && cd /tmp/clone-test
 # follow README literally, no improvising, no API key set
 ```
 
-Anything fixed by instinct is a README bug. Run it on **2 Sep** and again before submitting.
+Anything fixed by instinct is a README bug. Run it before every release.
 
 ---
 
 ## 9. Cut list
 
-Ordered. Read this on 30 Aug if the gate in §10 has not passed.
+Ordered. What goes first if the build ever has to shrink.
 
 1. ~~**SHAP explainability (F9).**~~ **Built after all — the cut reasoning did not survive contact
    with the artefact.** The premise was that the agent writes its own reasoning to every row it
    touches. That holds only when the agent runs: with no API key and an empty cache, which is a
    fresh clone, `agent_reasoning` is a placeholder on all 411 agent-routed rows. SHAP is the
-   explanation layer that works in the ablation, i.e. in the configuration a judge will use.
+   explanation layer that works in the ablation, i.e. in the configuration a fresh clone uses.
 2. **Cohort breakdown charts (§2.5 panel 1).** Headline, failures panel, and false-positive cost all
    survive; the slicing goes.
 3. **Promise-to-pay tracker (F8).** `DUNNING_P2P` degrades to a terminal action. If cut, delete
@@ -484,11 +483,10 @@ Ordered. Read this on 30 Aug if the gate in §10 has not passed.
 
 ---
 
-## 10. Build order and gates
+## 10. Build order and milestones
 
-No calendar. The deadline (5 Sep) is an outer bound, not a plan — submit as soon as Gate E passes.
-What follows is dependency order, which does not compress, and five gates, which are the only real
-checkpoints.
+Dependency order does not compress. What follows is that order, and the five milestones that were
+the only real checkpoints during the build.
 
 ### 10.1 Dependency graph
 
@@ -504,55 +502,51 @@ after F2:        F9 SHAP
 F3 and F7 can be built at any time, including before F1. They are the natural parallel worktrees.
 Nothing else on the critical path can start early — a scorer with no data is not a thing.
 
-### 10.2 Gates
+### 10.2 Milestones
 
-**Status: A, B, C and D passed** (27 Aug). `/batch/run` returns **₹44,25,090 recovered of
-₹1,26,32,606 at risk** (35.0%) over 500 records with no LLM in the loop; `verify_totals.py`
-re-derives the same paise from the ledger without importing `ledger.py`; 11 rows carry a
-hard-rule veto of an agent-proposed retry; the §8.4 clone test passes with no API key. **152
-tests.**
+**All five are complete.** `/batch/run` returns **₹44,25,090 recovered of ₹1,26,32,606 at risk**
+(35.0%) over 500 records with no LLM in the loop; `verify_totals.py` re-derives the same paise
+from the ledger without importing `ledger.py`; 11 rows carry a hard-rule veto of an agent-proposed
+retry; the §8.4 clone test passes with no API key. **205 tests.**
 
 The clone test earned its place immediately: it found that `models/scorer.txt` was checked out
 with CRLF endings and LightGBM refused to parse it, so the repo worked for the author and was
-broken for every judge. Fixed in `.gitattributes`.
+broken for everyone else. Fixed in `.gitattributes`.
 
-Gate E remains: the video. `ARCHITECTURE.md` and `README.md` are written, the repo is public.
+| Milestone | Passes when |
+|---|---|
+| **Skeleton** | `/health` returns ok; `/batch/run` returns the §7.2 shape as a stub; frontend renders six cards off it; `pytest` runs green on an empty suite |
+| **First real figure** | `/batch/run` returns **one real ₹ recovered figure, end to end**, using the deterministic fallback policy and **no LLM** |
+| **Agent live** | agent decides the ambiguous band; §8.2 gate 4 produces a vetoed-proposal row; `--no-llm` ablation delta measured |
+| **Hardened** | §8.1 and §8.2 all green; secrets swept; §8.4 clone test passes with no API key set |
+| **Documented** | `ARCHITECTURE.md`, `README.md`, `SOURCES.md` written; repo public |
 
-| Gate | Passes when | Blocks |
-|---|---|---|
-| **A** ✅ — skeleton | `/health` returns ok; `/batch/run` returns the §7.2 shape as a stub; frontend renders six cards off it; `pytest` runs green on an empty suite | everything |
-| **B** ✅ — the hard gate | `/batch/run` returns **one real ₹ recovered figure, end to end**, using the deterministic fallback policy and **no LLM** | F5, F8, F9 |
-| **C** ✅ — agent live | agent decides the ambiguous band; §8.2 gate 4 produces a vetoed-proposal row; `--no-llm` ablation delta measured | video |
-| **D** ✅ — hardened | §8.1 and §8.2 all green; secrets swept; §8.4 clone test passes with no API key set | submission |
-| **E** — deliverables | `ARCHITECTURE.md`, `README.md`, 5-minute video recorded, repo public | — |
+### 10.3 The milestone that decides the project
 
-### 10.3 The hard gate — B
+**The first real figure is the one that matters.** The deterministic fallback policy (§4.3 layer 2)
+is built as part of F3/F4, so the pipeline closes completely *before* the agent exists. The agent is
+an upgrade to a working system, never a dependency of it.
 
-**Gate B is the one that decides this project.** The deterministic fallback policy (§4.3 layer 2) is
-built as part of F3/F4, so the pipeline closes completely *before* the agent exists. The agent is an
-upgrade to a working system, never a dependency of it.
-
-If Gate B is not passing and the work is slowing rather than speeding up, stop feature work and open
-§9. One loop closed completely beats three half-built — that rule does not relax because the
-schedule did.
+If that milestone is not passing and the work is slowing rather than speeding up, stop feature work
+and open §9. One loop closed completely beats three half-built.
 
 ### 10.4 Order of work
 
-1. Gate A — skeleton, `CLAUDE.md`, hooks, venv, repo
-2. F3 guardrails (pure, testable immediately, and it is the piece the track bar rewards)
+1. Skeleton — `CLAUDE.md`, hooks, venv, repo
+2. F3 guardrails (pure, testable immediately, and the piece the whole design rests on)
 3. F1 generator
 4. F2 scorer
-5. F4 ledger + executor + clock → **Gate B**
+5. F4 ledger + executor + clock → **first real figure**
 6. F7 dashboard on real data
-7. F5 decider agent → **Gate C**
+7. F5 decider agent → **agent live**
 8. F8 promise-to-pay
 9. F9 SHAP
-10. Harden → **Gate D**
-11. Docs + video → **Gate E**
+10. Harden
+11. Docs
 
 F3 moves ahead of F1 here because it needs nothing, it is fully testable in isolation, and it is the
-component the Track 03 bar most directly rewards. Getting it done early means the rest of the build
-is decorating a compliance layer that already works.
+component everything else is built to protect. Getting it done early means the rest of the build is
+decorating a compliance layer that already works.
 
 ---
 
@@ -563,5 +557,5 @@ is decorating a compliance layer that already works.
 - Every ₹ figure traceable to a ledger row.
 - Money is integer paise. Never a float.
 - Nothing offense-capable anywhere in this repo.
-- If it cannot be shown in the 5-minute video, it is not a priority.
+- If it cannot be shown on the dashboard or in a test, it is not a priority.
 - One loop closed completely beats three half-built.

@@ -114,7 +114,7 @@ def test_rule4_inside_horizon_is_allowed():
 
 
 def test_precedence_revoked_beats_cooling():
-    """Both fire. Rule 1 must win, because the reason shown to a judge has to be the real one."""
+    """Both fire. Rule 1 must win, because the reason shown to a reviewer has to be the real one."""
     d = evaluate(
         rec(
             failure_reason=FailureReason.REVOKED_MANDATE,
@@ -209,7 +209,7 @@ def test_only_the_ambiguous_band_routes_to_the_agent():
 
 
 def test_agent_band_still_carries_an_executable_fallback():
-    """Gate B runs with no agent at all, so the routed decision must already be valid."""
+    """The no-agent run must work on its own, so the routed decision must already be valid."""
     d = evaluate(rec(), 0.44, NOW)
     assert d.needs_agent is True
     assert d.action is Action.RETRY_SCHEDULED

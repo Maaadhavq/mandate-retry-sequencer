@@ -8,7 +8,7 @@ Leakage is prevented structurally rather than by convention. `SealedHoldout` ref
 hand over its data until `unseal()` is called, and `unseal()` refuses to run before the
 booster exists. Getting a metric out of the holdout early raises instead of quietly
 returning a better-looking number. The `--prove-seal` flag demonstrates that on demand,
-which is a more convincing artefact for a judge than a comment claiming discipline.
+which is a more convincing artefact for a reviewer than a comment claiming discipline.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""F6 — the batch runner. SPEC §5.3, §10.2 Gate B.
+"""F6 — the batch runner. SPEC §5.3.
 
 One pass of the campaign: wake due records → guardrails → (agent, when ambiguous) →
 re-validate → execute → ledger. The clock decides *when*, `guardrails` decides *whether*,
@@ -7,7 +7,7 @@ and nothing else, which is what keeps the veto path honest — the runner cannot
 action that did not come back out of `validate_proposal`.
 
 The agent is optional by construction. With `use_llm=False` — or with no decider wired in
-at all, which is the state at Gate B — the ambiguous band falls through to
+at all — the ambiguous band falls through to
 `decide_fallback` and the whole pipeline still closes on a real rupee figure. That is the
 point of the layering: the agent is an upgrade to a working system, never a dependency of
 one (SPEC §10.3).
@@ -43,7 +43,7 @@ DEFAULT_BATCH_PATH: Final[Path] = Path("data/batch.csv")
 
 
 class Decider(Protocol):
-    """What F5 will provide. Absent at Gate B; the fallback covers the same surface."""
+    """What F5 provides. When absent, the fallback covers the same surface."""
 
     def decide(
         self, record: MandateRecord, score: float, now: datetime

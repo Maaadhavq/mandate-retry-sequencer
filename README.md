@@ -1,23 +1,25 @@
 # Mandate Retry Sequencer
 
-**Razorpay AI Buildathon — Track 03, AI Revenue Recovery**
+**A guardrailed recovery pipeline for failed UPI Autopay mandate debits — where an agent proposes
+and compliance rules dispose.**
+
+This project is an implementation of the "agent proposes, rules dispose" pattern — the same
+governance architecture used in production AI systems for eCommerce and fintech. An ML model scores
+each case for recoverability, an LLM agent handles the ambiguous middle, and five inviolable
+compliance rules run before *and* after every agent proposal. No score, and no agent decision, can
+override a hard rule. Every rupee the system touches is traceable to a row in an append-only
+ledger, and everything it failed to recover is listed in full rather than hidden.
 
 **More than 20 million UPI Autopay mandates are revoked every month in India because the customer's
 balance was short.** Retrying them is not the hard part — every gateway does that. The hard part is
 proving *which* retries were permitted, which were refused, what being wrong cost, and what the
 system chose not to do.
 
-This is the governance layer for that: a recovery pipeline where a model proposes and **compliance
-rules dispose**. It scores each failed debit for recoverability, decides an intervention, refuses
-anything the rules forbid — including NPCI's peak-hour restriction on autopay execution — runs a
-14-day campaign against a simulated rail, and reports money recovered against money at risk with
-every rupee traceable to a row in an append-only ledger.
-
-> **Status: gates A–D passed; E needs only the video.** On the committed seed it recovers
-> **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500 records: 187 stopped by a hard rule,
-> 11 agent-proposed retries vetoed by one, **zero of 266 debits executed inside an NPCI peak
-> window**, and ₹82,07,516 it failed to recover listed in full rather than hidden. **195 tests**,
-> and a fresh clone with no API key reproduces every figure. See [SPEC.md](SPEC.md) §10.
+> On the committed seed it recovers **₹44,25,090 of ₹1,26,32,606 at risk (35.0%)** across 500
+> records: 187 stopped by a hard rule, 11 agent-proposed retries vetoed by one, **zero of 266 debits
+> executed inside an NPCI peak window**, and ₹82,07,516 it failed to recover listed in full rather
+> than hidden. **205 tests**, and a fresh clone with no API key reproduces every figure. The
+> milestone history is in [SPEC.md](SPEC.md) §10.
 
 ### What it refuses to do
 
@@ -102,6 +104,14 @@ tautology rather than a check (SPEC 8.2 gate 2):
 ```bash
 .venv/Scripts/python -m backend.scripts.verify_totals
 ```
+
+### Deploy
+
+[`render.yaml`](render.yaml) describes both services for [Render](https://render.com): a Python
+web service that generates the data at build time and serves the API, and a static site for the
+dashboard. The frontend reads the API origin from `VITE_API_URL` at build time
+(see [`frontend/.env.example`](frontend/.env.example)); the backend accepts any `*.onrender.com`
+origin plus localhost, and `CORS_ORIGINS` (comma-separated) adds more.
 
 ---
 

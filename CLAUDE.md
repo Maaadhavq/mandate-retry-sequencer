@@ -2,9 +2,9 @@
 
 `SPEC.md` is the contract. Read it before implementing. Changing a decision means editing SPEC first.
 
-**Starting a fresh session: read `HANDOFF.md` first** — current gate status, what is left, decisions
+**Starting a fresh session: read `HANDOFF.md` first** — current status, what is left, decisions
 not to re-litigate, and traps that already cost time. It is gitignored local working state, not part
-of the submission, so it will be absent from a clone.
+of the published repo, so it will be absent from a clone.
 
 ## Commands
 

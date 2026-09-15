@@ -1,20 +1,19 @@
-"""Grade this submission against the Track 03 bar. Run it any time; it re-derives everything.
+"""Grade this repo against its own bar. Run it any time; it re-derives everything.
 
-The bar, verbatim from the brief:
+The bar, from SPEC §8:
 
-    "Show measured money recovered across a batch, with compliant escalation, stopping rules,
-     and an audit trail."
+    Show measured money recovered across a batch, with compliant escalation, stopping rules,
+    and an audit trail.
 
-Plus three required deliverables: a public repo, a 5-minute pitch video, architecture docs.
+Plus two deliverables: a public repo and architecture docs.
 
 Design rules for this file, because a self-assessment that flatters is worse than none:
 
 - **Every check runs something.** No item passes because a human ticked it. Where a claim
-  cannot be checked mechanically (a recorded video), it is reported as UNVERIFIABLE, never
-  as a pass.
+  cannot be checked mechanically, it is reported as UNVERIFIABLE, never as a pass.
 - **It is allowed to fail.** If the checks cannot fail, they measure nothing.
 - **Known-weak areas are graded as weak** even when they are working as designed, because the
-  question this answers is "is it good enough to win", not "does it run".
+  question this answers is "is it good enough to ship", not "does it run".
 
     .venv/Scripts/python -m backend.scripts.evaluate_readiness
 """
@@ -173,20 +172,6 @@ def check_architecture_docs() -> Check:
     return Check("Architecture docs", PASS, "ARCHITECTURE + README + SOURCES all present and substantive")
 
 
-def check_video() -> Check:
-    """A recorded video cannot be verified from here. Say so; never pass it on a script's say-so."""
-    media = [
-        p for p in REPO.iterdir()
-        if p.suffix.lower() in {".mp4", ".mov", ".mkv", ".webm"}
-    ]
-    script = REPO / "VIDEO.md"
-    if media:
-        return Check("5-minute video", UNKNOWN, f"found {media[0].name} — length and content unchecked")
-    if script.exists():
-        return Check("5-minute video", FAIL, "script written, nothing recorded — this blocks submission")
-    return Check("5-minute video", FAIL, "no script and no recording")
-
-
 # -- quality signals ---------------------------------------------------------------------
 
 
@@ -236,7 +221,7 @@ def check_false_positive_cost() -> Check:
 
 
 def check_agent_contribution() -> Check:
-    """The AI track's weakest point while the cache is empty. Graded as weak, not hidden."""
+    """The weakest point while the cache is empty. Graded as weak, not hidden."""
     from backend.app.llm_cache import DEFAULT_CACHE_DIR
 
     entries = len(list((REPO / DEFAULT_CACHE_DIR).glob("*.json"))) if (REPO / DEFAULT_CACHE_DIR).exists() else 0
@@ -245,7 +230,7 @@ def check_agent_contribution() -> Check:
             "Agent contribution measured",
             FAIL,
             "cache/llm/ is empty — the ablation delta is ₹0 by construction, not by measurement. "
-            "This is an AI track; run `ablate --populate` with a key.",
+            "Run `ablate --populate` with a key to measure it.",
         )
     return Check("Agent contribution measured", PASS, f"{entries} cached decisions; ablation is real")
 
@@ -266,13 +251,12 @@ def check_honest_failures() -> Check:
 
 
 CHECKS: Final[list[tuple[str, Callable[[], Check]]]] = [
-    ("Track 03 bar", check_measured_money),
-    ("Track 03 bar", check_compliant_escalation),
-    ("Track 03 bar", check_stopping_rules),
-    ("Track 03 bar", check_audit_trail),
+    ("The bar", check_measured_money),
+    ("The bar", check_compliant_escalation),
+    ("The bar", check_stopping_rules),
+    ("The bar", check_audit_trail),
     ("Deliverables", check_public_repo),
     ("Deliverables", check_architecture_docs),
-    ("Deliverables", check_video),
     ("Quality", check_tests),
     ("Quality", check_honest_metrics),
     ("Quality", check_honest_failures),
@@ -308,12 +292,12 @@ def main() -> None:
         print("\n  BLOCKING:")
         for c in blockers:
             print(f"    - {c.name}: {c.detail}")
-        print("\n  Not ready to submit.")
+        print("\n  Not ready to ship.")
         raise SystemExit(1)
 
     weak = [c for _, c in results if c.status == WEAK]
     if weak:
-        print("\n  Submittable. Weakest points, in the order a panel will find them:")
+        print("\n  Shippable. Weakest points, in the order a reviewer will find them:")
         for c in weak:
             print(f"    - {c.name}: {c.detail}")
     else:

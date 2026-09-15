@@ -169,23 +169,7 @@ stated in `ARCHITECTURE.md` §8 as well.
 
 ---
 
-## 4. The brief
-
-Track 03, AI Revenue Recovery — *"Find revenue that's slipping away and win it back."*
-
-The stated bar, verbatim:
-
-> "Show measured money recovered across a batch, with compliant escalation, stopping rules, and an
-> audit trail."
-
-Three of those four clauses are governance rather than prediction, which is what shaped this
-project's priorities.
-
-- [Razorpay AI Buildathon](https://razorpay.com/buildathon/)
-
----
-
-## 5. What would change my mind
+## 4. What would change my mind
 
 Honest list of where this could be wrong:
 

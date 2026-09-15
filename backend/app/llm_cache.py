@@ -3,7 +3,7 @@
 This is what reconciles an LLM in the money path with the rule that every ₹ figure be
 reproducible by running a script. Each decision is stored under
 `sha256(model + policy_version + canonical_record_json)` and **committed to the repo**, so a
-judge who clones with no API key replays every decision and reproduces the video's totals
+clone with no API key replays every decision and reproduces the committed-seed totals
 byte for byte.
 
 Two properties make that work:

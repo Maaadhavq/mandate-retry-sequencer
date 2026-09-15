@@ -1,6 +1,6 @@
-"""Gate A (SPEC §10.2): the skeleton runs and the frozen contract holds.
+"""The skeleton runs and the frozen contract holds (SPEC §7.2).
 
-These tests outlive the stub. When `run_batch` is replaced at Gate B they must still pass
+These tests outlive the stub. When `run_batch` is replaced by the real pipeline they must still pass
 unchanged — that is what "frozen shape" means in practice.
 """
 

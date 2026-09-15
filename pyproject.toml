@@ -1,7 +1,7 @@
 [project]
 name = "mandate-retry-sequencer"
 version = "0.1.0"
-description = "Bounded recovery workflow for failed UPI Autopay mandate debits. Razorpay AI Buildathon, Track 03."
+description = "Guardrailed recovery pipeline for failed UPI Autopay mandate debits. ML scoring + LLM agent + five inviolable compliance rules."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115",

@@ -7,7 +7,7 @@ runs. With no API key and an empty response cache — which is the state of a fr
 panel can say *that* a record was refused but not *why the model scored it as it did*.
 
 This module closes that gap without a network call. It is the explanation layer that works
-in the ablation, which is the configuration a judge will actually run.
+in the ablation, which is the configuration a fresh clone actually runs.
 
 Contributions are in the model's log-odds space, not probability. A contribution of +1.44
 does not mean "+144% chance"; it means this feature pushed the log-odds up by 1.44 from the

@@ -1,4 +1,4 @@
-"""SPEC §8.2 — the whole-pipeline gates, and Gate B.
+"""SPEC §8.2 — the whole-pipeline gates, and the first real ₹ figure end to end.
 
 Gate 4 (an agent proposal vetoed by a hard rule) needs F5 and lives in `test_decider.py`.
 The guardrail half of it is already proven in `test_guardrails.py`; what is missing here is
@@ -138,7 +138,7 @@ def test_an_example_row_exists_for_each_hard_rule(ledger_rows: list[dict]) -> No
 def test_revoked_mandates_never_recover_anywhere_in_the_run(
     ledger_rows: list[dict],
 ) -> None:
-    """Rule 1 is absolute. This is the claim the whole submission rests on."""
+    """Rule 1 is absolute. This is the claim the whole system rests on."""
     revoked = [
         r for r in ledger_rows
         if r["failure_reason"] == FailureReason.REVOKED_MANDATE.value
@@ -208,7 +208,7 @@ def test_a_different_seed_changes_the_outcome(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# Gate B — a real figure through the frozen shape
+# A real figure through the frozen shape
 # --------------------------------------------------------------------------------------
 
 
@@ -218,7 +218,7 @@ def test_batch_run_returns_a_real_recovered_figure() -> None:
 
     assert response.status_code == 200
     totals = response.json()["totals"]
-    assert totals["recovered_paise"] > 0, "Gate B needs one real ₹ figure end to end"
+    assert totals["recovered_paise"] > 0, "the pipeline must produce one real ₹ figure end to end"
     assert totals["at_risk_paise"] > totals["recovered_paise"]
     assert 0.0 < totals["recovery_rate"] < 1.0
 

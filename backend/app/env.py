@@ -5,7 +5,7 @@ the live agent, but nothing read the file — the key had to be exported into th
 which is easy to get wrong and easy to leak into shell history.
 
 Hand-rolled rather than depending on `python-dotenv`: it is fifteen lines, and one fewer
-dependency is one fewer thing between a judge and a working clone.
+dependency is one fewer thing between a fresh clone and a working run.
 
 Real environment variables always win. A `.env` is a convenience for local development, not an
 override — if someone has deliberately exported a key for this shell, a stale file must not

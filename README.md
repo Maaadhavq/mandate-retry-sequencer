@@ -45,7 +45,7 @@ is graded in [`policy.py`](backend/app/policy.py) as regulation, industry conven
 
 ## Run it
 
-Requires [uv](https://docs.astral.sh/uv/) and Node 18+. **No API key is needed.**
+Requires [uv](https://docs.astral.sh/uv/) and Node 22+ (Vite 8). **No API key is needed.**
 
 ```bash
 uv sync --extra dev                    # creates .venv on Python 3.12

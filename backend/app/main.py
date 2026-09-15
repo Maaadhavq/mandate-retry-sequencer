@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import threading
 import uuid
+from contextlib import asynccontextmanager
 from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException
@@ -40,10 +41,37 @@ VERSION = "0.1.0"
 #: Sync endpoints run on a threadpool, so this is a real race on a shared host.
 _RUN_LOCK = threading.Lock()
 
+def _warm() -> None:
+    """Pay the cold-start costs before a visitor does.
+
+    Loading the LightGBM model, walking the forest for the SHAP explainer, and one seed-42
+    campaign take several seconds on a small host. Doing them here, in a daemon thread,
+    means the first `/batch/run` is fast and the first `/explain` is instant. Missing data
+    (a clone that has not generated it yet) is not an error at startup — the endpoints
+    report it properly when called.
+    """
+    try:
+        from backend.app.runner import run_campaign
+
+        with _RUN_LOCK:
+            run_campaign(seed=42, use_llm=False)
+        _batch_by_id()
+        _explainer()
+    except FileNotFoundError:
+        pass
+
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    threading.Thread(target=_warm, name="warm", daemon=True).start()
+    yield
+
+
 app = FastAPI(
     title="Mandate Retry Sequencer",
     version=VERSION,
     description="Bounded recovery workflow for failed UPI Autopay mandate debits.",
+    lifespan=_lifespan,
 )
 
 # The dashboard runs on the Vite dev server during development and on Render when deployed.

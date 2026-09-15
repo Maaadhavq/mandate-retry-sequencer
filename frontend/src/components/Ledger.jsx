@@ -119,7 +119,7 @@ function Row({ failure: f }) {
         <tr className="detail">
           <td colSpan={5}>
             {failed && <span className="detail-msg tone-rose">Could not explain: {failed}</span>}
-            {!failed && !detail && <span className="detail-msg">Explaining…</span>}
+            {!failed && !detail && <span className="detail-msg">Explaining… the first one on a cold host builds the explainer.</span>}
             {detail && (
               <div className="explain">
                 <p className="explain-summary">{detail.summary}</p>

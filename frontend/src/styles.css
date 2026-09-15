@@ -533,6 +533,10 @@ td.num,
 .flow .node text {
   font-size: 12px;
   fill: var(--text-2);
+  paint-order: stroke;
+  stroke: var(--ink);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .flow .node-count {
   fill: var(--text);
@@ -609,11 +613,41 @@ td.num,
   color: var(--text);
 }
 
+.agree {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+.agree i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 0.7rem;
+  background: var(--brass-dim);
+  color: var(--brass-ink);
+}
+.agree.disagree i {
+  background: var(--rose-dim);
+  color: var(--rose-ink);
+}
+.agree b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text);
+}
+
 .segments {
   display: flex;
   gap: 2px;
   height: 14px;
-  margin-top: 28px;
+  margin-top: 16px;
 }
 .segments.thin {
   height: 8px;

@@ -10,6 +10,11 @@ compliance rules run before *and* after every agent proposal. No score, and no a
 override a hard rule. Every rupee the system touches is traceable to a row in an append-only
 ledger, and everything it failed to recover is listed in full rather than hidden.
 
+**Live:** [mandate-retry-frontend.onrender.com](https://mandate-retry-frontend.onrender.com) — runs
+the batch on load (the free-tier backend takes up to a minute to wake the first time).
+
+[![The dashboard: the pipeline as a rail, and where the 500 debits went](docs/dashboard.png)](https://mandate-retry-frontend.onrender.com)
+
 **More than 20 million UPI Autopay mandates are revoked every month in India because the customer's
 balance was short.** Retrying them is not the hard part — every gateway does that. The hard part is
 proving *which* retries were permitted, which were refused, what being wrong cost, and what the

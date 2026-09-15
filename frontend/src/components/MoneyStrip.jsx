@@ -5,8 +5,10 @@ import { count, percent, rupees } from "../api";
  * The money, split the way the rail split it. Paise are summed as integers and only
  * formatted at the edge (CLAUDE.md); the segments are the failures list re-bucketed.
  */
-export default function MoneyStrip({ data }) {
+export default function MoneyStrip({ data, trace }) {
   const t = data.totals;
+  const rederived = trace ? trace.daily.reduce((sum, d) => sum + d.recovered_paise, 0) : null;
+  const agrees = rederived === t.recovered_paise;
 
   const segments = useMemo(() => {
     const acc = { rule: 0, score: 0, expired: 0 };
@@ -51,6 +53,23 @@ export default function MoneyStrip({ data }) {
           </div>
         </dl>
       </div>
+
+      {rederived !== null && (
+        <p className={`agree${agrees ? "" : " disagree"}`}>
+          <i aria-hidden="true">{agrees ? "✓" : "!"}</i>
+          {agrees ? (
+            <>
+              A second, independent read of the ledger sums to <b>{rupees(rederived)}</b> — the
+              headline and the trace agree to the paisa.
+            </>
+          ) : (
+            <>
+              The trace re-derives <b>{rupees(rederived)}</b>, which does not match the headline.
+              The ledger is wrong; nothing on this page should be trusted until it is fixed.
+            </>
+          )}
+        </p>
+      )}
 
       <div className="segments" role="img" aria-label="at-risk money by outcome">
         {segments.map((s) => (
